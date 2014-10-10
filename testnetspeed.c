@@ -16,13 +16,13 @@
 #include <sys/time.h>
 #include <math.h>
 
-#define IpAddr  			"192.168.1.10"//"192.168.1.127"//"192.168.1.126"//"192.168.1.10"//
-#define PortNum 			25000
-#define SendDelay			13000//AP_C: 13ms default, STA_C: 13ms default, STA_S: 5ms default
-#define ServerDownTimes		8192
-#define ClientDownTimes		4096
-#define CDownIpPacketBytes 	1024
-#define SDownIpPacketBytes 	512
+#define IpAddr              "192.168.1.10"//"192.168.1.127"//"192.168.1.126"//"192.168.1.10"//
+#define PortNum             25000
+#define SendDelay           13000//AP_C: 13ms default, STA_C: 13ms default, STA_S: 5ms default
+#define ServerDownTimes     8192
+#define ClientDownTimes     4096
+#define CDownIpPacketBytes  1024
+#define SDownIpPacketBytes  512
 
 int main(int argc, char *argv[])
 {
@@ -61,12 +61,13 @@ int main(int argc, char *argv[])
 	//server_addr.sin_addr = *((struct in_addr *)host->h_addr); // IP地址,即服务器地址.两个结构体赋值
 	server_addr.sin_addr.s_addr = inet_addr(IpAddr);
 
-	printf("###################\n"
-		   "Select Test Mode:\n"
-		   "1  Server Test\n"
-		   "2  Client Test\n"
-		   "3  Exit Test\n"
-		   "###################\n");
+	printf("\n"
+			"###################\n"
+			"Select Test Mode:\n"
+			"1  Server Test\n"
+			"2  Client Test\n"
+			"3  Exit Test\n"
+			"###################\n");
 	testmode = getchar();
 	getchar();// read '\n'
 
