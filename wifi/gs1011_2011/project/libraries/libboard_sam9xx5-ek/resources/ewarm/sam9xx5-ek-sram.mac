@@ -1,0 +1,65 @@
+// ---------------------------------------------------------
+//   ATMEL Microcontroller Software Support
+// ---------------------------------------------------------
+// The software is delivered "AS IS" without warranty or
+// condition of any  kind, either express, implied or
+// statutory. This includes without limitation any warranty
+// or condition with respect to merchantability or fitness
+// for any particular purpose, or against the infringements of
+// intellectual property rights of others.
+// ---------------------------------------------------------
+//  File: sam9x5-ek-sram.mac
+//  User setup file for CSPY debugger.
+//  
+// ---------------------------------------------------------
+__var __mac_i;
+__var __mac_pt;
+
+
+//  Initial clock setting for SAM9XX5 new chip 
+
+/*********************************************************************
+*
+*       execUserReset() : JTAG set initially to Full Speed
+*/
+execUserReset()
+{
+    __message "------------------------------ execUserReset ---------------------------------";
+     _MapRAMAt0();                       //* Set the RAM memory at 0x00300000 & 0x00000000
+    __message "-------------------------------Set PC Reset ----------------------------------";
+}
+
+/*********************************************************************
+*
+*       execUserPreload() : JTAG set initially to 32kHz
+*/
+execUserPreload()
+{
+    __message "------------------------------ execUserPreload ---------------------------------";
+    __hwReset(0);                     //* Hardware Reset: CPU is automatically halted after the reset (JTAG is already configured to 32kHz)
+    _MapRAMAt0();                     //* Set the RAM memory at 0x00300000 & 0x00000000
+}
+
+/*********************************************************************
+*
+*       _MapRAMAt0()
+* Function description
+* Remap RAM at 0
+*/
+_MapRAMAt0()
+{
+  __var hold;
+  // ******************************************************
+  // Test and set Remap
+  // ******************************************************
+  hold = __readMemory32(0x00000000,"Memory");
+  __writeMemory32(0xAAAAAAAA,0x00000000,"Memory");
+  if(__readMemory32(0x00000000,"Memory") != 0xAAAAAAAA)
+  {
+    __writeMemory32(0x03,0xFFFFE100,"Memory");    // toggle remap bits
+  }
+  else
+  {
+    __writeMemory32(hold,0x00000000,"Memory");
+  }
+}

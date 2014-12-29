@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project>
+  <fileVersion>2</fileVersion>
+  <fileChecksum>419608084</fileChecksum>
+  <configuration>
+    <name>Debug</name>
+    <outputs>
+      <file>$PROJ_DIR$\..\..\source\EccNandFlash.c</file>
+      <file>$PROJ_DIR$\..\..\source\NandFlashDma.c</file>
+      <file>$PROJ_DIR$\..\..\source\NandFlashModel.c</file>
+      <file>$PROJ_DIR$\..\..\source\NandFlashModelList.c</file>
+      <file>$PROJ_DIR$\..\..\source\NandFlashOnfi.c</file>
+      <file>$PROJ_DIR$\..\..\source\NandSpareScheme.c</file>
+      <file>$PROJ_DIR$\..\..\source\RawNandFlash.c</file>
+      <file>$PROJ_DIR$\..\..\source\SkipBlockNandFlash.c</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashModelList.o</file>
+      <file>$PROJ_DIR$\debug\obj\EccNandFlash.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\NandSpareScheme.o</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashDma.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashOnfi.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashModelList.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\SkipBlockNandFlash.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\RawNandFlash.o</file>
+      <file>$PROJ_DIR$\debug\obj\EccNandFlash.o</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashModel.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashOnfi.o</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashDma.o</file>
+      <file>$PROJ_DIR$\debug\obj\NandSpareScheme.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\RawNandFlash.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\NandFlashModel.o</file>
+      <file>$PROJ_DIR$\..\..\lib\libnandflash_ewarm_dbg.a</file>
+      <file>$PROJ_DIR$\debug\obj\SkipBlockNandFlash.o</file>
+    </outputs>
+    <file>
+      <name>[ROOT_NODE]</name>
+      <outputs>
+        <tool>
+          <name>IARCHIVE</name>
+          <file> 23</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\EccNandFlash.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 16</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 9</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\NandFlashDma.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 19</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 11</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\NandFlashModel.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 22</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 17</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\NandFlashModelList.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 8</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 13</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\NandFlashOnfi.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 18</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 12</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\NandSpareScheme.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 10</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 20</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\RawNandFlash.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 15</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 21</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\SkipBlockNandFlash.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 24</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 14</file>
+        </tool>
+      </outputs>
+    </file>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <outputs/>
+    <forcedrebuild>
+      <name>[MULTI_TOOL]</name>
+      <tool>IARCHIVE</tool>
+    </forcedrebuild>
+  </configuration>
+</project>
+
+

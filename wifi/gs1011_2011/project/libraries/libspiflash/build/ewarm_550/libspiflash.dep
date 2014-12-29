@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project>
+  <fileVersion>2</fileVersion>
+  <fileChecksum>3792985298</fileChecksum>
+  <configuration>
+    <name>Debug</name>
+    <outputs>
+      <file>$PROJ_DIR$\..\..\source\at25_spi.c</file>
+      <file>$PROJ_DIR$\..\..\source\at25d.c</file>
+      <file>$PROJ_DIR$\..\..\source\at45_spi.c</file>
+      <file>$PROJ_DIR$\..\..\source\at45d.c</file>
+      <file>$PROJ_DIR$\..\..\source\spid_dma.c</file>
+      <file>$PROJ_DIR$\debug\obj\at45_spi.o</file>
+      <file>$PROJ_DIR$\debug\obj\at25d.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\at45_spi.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\at45d.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\at45d.o</file>
+      <file>$PROJ_DIR$\debug\obj\at25_spi.o</file>
+      <file>$PROJ_DIR$\debug\obj\at25_spi.pbi</file>
+      <file>$PROJ_DIR$\..\..\lib\libspiflash_ewarm_dbg.a</file>
+      <file>$PROJ_DIR$\debug\obj\spid_dma.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\at25d.o</file>
+      <file>$PROJ_DIR$\debug\obj\spid_dma.o</file>
+    </outputs>
+    <file>
+      <name>[ROOT_NODE]</name>
+      <outputs>
+        <tool>
+          <name>IARCHIVE</name>
+          <file> 12</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\at25_spi.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 10</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 11</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\at25d.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 14</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 6</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\at45_spi.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 5</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 7</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\at45d.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 9</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 8</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\spid_dma.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 15</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 13</file>
+        </tool>
+      </outputs>
+    </file>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <outputs/>
+    <forcedrebuild>
+      <name>[MULTI_TOOL]</name>
+      <tool>IARCHIVE</tool>
+    </forcedrebuild>
+  </configuration>
+</project>
+
+

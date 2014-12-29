@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project>
+  <fileVersion>2</fileVersion>
+  <fileChecksum>3070283753</fileChecksum>
+  <configuration>
+    <name>Debug</name>
+    <outputs>
+      <file>$PROJ_DIR$\..\..\source\pmecc.c</file>
+      <file>$PROJ_DIR$\..\..\source\pmecc_gallois_field_1024.c</file>
+      <file>$PROJ_DIR$\..\..\source\pmecc_gallois_field_512.c</file>
+      <file>$PROJ_DIR$\debug\obj\pmecc_gallois_field_512.o</file>
+      <file>$PROJ_DIR$\..\..\lib\libpmecc_ewarm_dbg.a</file>
+      <file>$PROJ_DIR$\debug\obj\pmecc.o</file>
+      <file>$PROJ_DIR$\debug\obj\pmecc_gallois_field_512.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\pmecc_gallois_field_1024.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\pmecc.pbi</file>
+      <file>$PROJ_DIR$\debug\obj\pmecc_gallois_field_1024.o</file>
+    </outputs>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\pmecc.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 5</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 8</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\pmecc_gallois_field_1024.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 9</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 7</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\source\pmecc_gallois_field_512.c</name>
+      <outputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 3</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 6</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>[ROOT_NODE]</name>
+      <outputs>
+        <tool>
+          <name>IARCHIVE</name>
+          <file> 4</file>
+        </tool>
+      </outputs>
+    </file>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <outputs/>
+    <forcedrebuild>
+      <name>[MULTI_TOOL]</name>
+      <tool>IARCHIVE</tool>
+    </forcedrebuild>
+  </configuration>
+</project>
+
+

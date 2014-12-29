@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<workspace>
+  <project>
+    <path>$WS_DIR$\libusb_sam9.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\libusb_sam3.ewp</path>
+  </project>
+  <batchBuild>
+    <batchDefinition>
+      <name>build_all</name>
+      <member>
+        <project>libusb</project>
+        <configuration>Debug</configuration>
+      </member>
+      <member>
+        <project>libusb</project>
+        <configuration>Release</configuration>
+      </member>
+    </batchDefinition>
+  </batchBuild>
+</workspace>
+
+

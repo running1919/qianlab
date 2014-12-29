@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<Workspace>
+  <ConfigDictionary>
+    
+    
+    
+  <CurrentConfigs><Project>gs2011/Debug</Project><Project>libboard_sam9x25/Debug</Project><Project>libspiflash/Debug</Project><Project>libchip_sam9x25/Debug</Project><Project>libnandflash/Debug</Project><Project>libpmecc/Debug</Project><Project>libsdmmc/Debug</Project></CurrentConfigs><CurrentProj>gs2011</CurrentProj><OverviewSelected>0</OverviewSelected></ConfigDictionary>
+  <Desktop>
+    <Static>
+      <Workspace>
+        <ColumnWidths>
+          
+          
+          
+          
+        <Column0>309</Column0><Column1>27</Column1><Column2>27</Column2><Column3>0</Column3></ColumnWidths>
+      </Workspace>
+    <Build><ColumnWidth0>20</ColumnWidth0><ColumnWidth1>843</ColumnWidth1><ColumnWidth2>224</ColumnWidth2><ColumnWidth3>56</ColumnWidth3></Build><TerminalIO/><Debug-Log><ColumnWidth0>26</ColumnWidth0><ColumnWidth1>1375</ColumnWidth1></Debug-Log></Static>
+    <Windows>
+      
+    <Wnd2>
+        <Tabs>
+          <Tab>
+            <Identity>TabID-28077-6660</Identity>
+            <TabName>Workspace</TabName>
+            <Factory>Workspace</Factory>
+            <Session>
+              
+            <NodeDict><ExpandedNode>&lt;ws&gt;</ExpandedNode><ExpandedNode>gs2011</ExpandedNode><ExpandedNode>libboard_sam9x25</ExpandedNode><ExpandedNode>libchip_sam9x25</ExpandedNode><ExpandedNode>libnandflash</ExpandedNode><ExpandedNode>libpmecc</ExpandedNode><ExpandedNode>libsdmmc</ExpandedNode><ExpandedNode>libspiflash</ExpandedNode></NodeDict></Session>
+          </Tab>
+        </Tabs>
+        
+      <SelectedTab>0</SelectedTab></Wnd2><Wnd3><Tabs><Tab><Identity>TabID-11977-21290</Identity><TabName>Build</TabName><Factory>Build</Factory><Session/></Tab><Tab><Identity>TabID-77-12363</Identity><TabName>Debug Log</TabName><Factory>Debug-Log</Factory><Session/></Tab></Tabs><SelectedTab>0</SelectedTab></Wnd3></Windows>
+    <Editor>
+      
+      
+      
+      
+    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\libraries\libboard_sam9xx5-ek\source\board_lowlevel.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>36</YPos2><SelStart2>2192</SelStart2><SelEnd2>2192</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\libraries\libchip_sam9xx5\source\pio.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>380</YPos2><SelStart2>12464</SelStart2><SelEnd2>12464</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\libraries\libboard_sam9xx5-ek\source\board_cstartup_iar.s</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>117</YPos2><SelStart2>5058</SelStart2><SelEnd2>5058</SelEnd2></Tab><ActiveTab>2</ActiveTab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
+    <Positions>
+      
+      
+      
+      
+      
+    <Top><Row0><Sizes><Toolbar-00E23C48><key>iaridepm.enu1</key></Toolbar-00E23C48></Sizes></Row0></Top><Left><Row0><Sizes><Wnd2><Rect><Top>-2</Top><Left>-2</Left><Bottom>619</Bottom><Right>383</Right><x>-2</x><y>-2</y><xscreen>164</xscreen><yscreen>196</yscreen><sizeHorzCX>113889</sizeHorzCX><sizeHorzCY>239609</sizeHorzCY><sizeVertCX>267361</sizeVertCX><sizeVertCY>759169</sizeVertCY></Rect></Wnd2></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd3><Rect><Top>-2</Top><Left>-2</Left><Bottom>154</Bottom><Right>1442</Right><x>-2</x><y>-2</y><xscreen>1444</xscreen><yscreen>156</yscreen><sizeHorzCX>1002778</sizeHorzCX><sizeHorzCY>190709</sizeHorzCY><sizeVertCX>113889</sizeVertCX><sizeVertCY>239609</sizeVertCY></Rect></Wnd3></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+  </Desktop>
+</Workspace>
+
+

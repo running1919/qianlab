@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<workspace>
+  <project>
+    <path>$WS_DIR$\..\..\src\examples_wifi\build\ewarm_710\gs2011.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\..\..\libraries\libboard_sam9xx5-ek\build\ewarm_550\libboard_sam9x25.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\..\..\libraries\libchip_sam9xx5\build\ewarm_550\libchip_sam9x25.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\..\..\libraries\libspiflash\build\ewarm_550\libspiflash.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\..\..\libraries\libnandflash\build\ewarm_550\libnandflash.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\..\..\libraries\libpmecc\build\ewarm_550\libpmecc.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\..\..\libraries\libsdmmc\build\ewarm_550\libsdmmc.ewp</path>
+  </project>
+  <batchBuild/>
+</workspace>
+
+
