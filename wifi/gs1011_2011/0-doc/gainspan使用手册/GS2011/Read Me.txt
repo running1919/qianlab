@@ -1,0 +1,17 @@
+The zip contains various folders.  Below is a short description of what is included in some of the folders.
+
+
+Documentation		--- Includes Serial to WiFi documentation and examples for customer to follow for various features                    	    
+
+Firmware		--- Includes the user configured firmware image and the corresponding configuration file.
+		            Re-program the module with this custom firmware using the gs2K flash programming tool.
+
+GS_Programming_Tool	--- Includes the GS2K flash programming tool and the user guide for that tool
+
+Hostapp		--- This folder includes two host sample source code examples, one when using SDIO and second when using
+                    SPI with DMA firmware on the GS2K module.
+                    SDIO - This includes the Renesas SH7269 host application if using SDIO on the Renesas SH7269 Board. In this example
+                    the sample code on the SH7269 acts as a SDIO to UART bridge, so once can use a serial terminal on a PC to send AT
+		    commands
+		    SPI_DMA - This host app is using a GS2K EVB as a host connecting to another GS2K EVB as client
+		    The GS2K EVB boards can be connected over SPI0.  See the readme document in that folder for details
