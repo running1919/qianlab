@@ -37,11 +37,13 @@ ierr_t im_read_slave_ioparam(uint8_t slave_macid, ican_io_param* ioparam, bool n
 ierr_t im_write_slave_cominfo(uint8_t slave_macid, ican_com_info* cominfo);
 
 /* ican slave core user api */
-bool ican_slave_init(uint8_t channel);
-ierr_t ican_slave_poll(uint8_t channel);
+bool ican_slave_init(uint8_t channel, uint8_t devMacId);
+ierr_t	ican_slave_poll(uint8_t channel);
 
 void ican_slave_init_fops(void);
 void ican_slave_set_fops(is_file_operations_t *ifops);
+uint8_t ican_slave_get_macid(uint8_t index);
+
 
 /* ican slave extended user api */
 void is_get_iosrc(ican_io_src* iosrc);

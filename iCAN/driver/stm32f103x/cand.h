@@ -17,6 +17,8 @@ typedef struct __RxFIFO {
     uint8_t fifonum;
     uint8_t usednum;
     uint8_t alldlc;
+    uint8_t rp;
+    uint8_t wp;
     CanRxMsg* rxMsg;    
 } sRxFIFO;
 

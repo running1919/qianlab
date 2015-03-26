@@ -10,11 +10,12 @@
 #define __ICAN_SLAVE_H__
 
 /* Core User API */
-bool ican_slave_init(uint8_t channel);
+bool ican_slave_init(uint8_t channel, uint8_t devMacId);
 ierr_t	ican_slave_poll(uint8_t channel);
 
 void ican_slave_init_fops(void);
 void ican_slave_set_fops(is_file_operations_t *ifops);
+uint8_t ican_slave_get_macid(uint8_t index);
 
 
 /* Extended User API */

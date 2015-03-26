@@ -14,6 +14,18 @@
 
 #include "ican.h"
 
+#define MSG_MAX_LIFE_TICK  (uint16_t)5000
+
+typedef struct __IcanMsg {
+    ican_frame ifs[RECV_MAX_MSG_NUM][ICAN_SPLIT_MAX_SEGS];
+    bool msgValid[RECV_MAX_MSG_NUM]; //true is valid , false is invalid
+    uint32_t msgLifeTick[RECV_MAX_MSG_NUM]; //    
+    uint8_t msgFrameNum[RECV_MAX_MSG_NUM]; //msg has frame num    
+    uint8_t maxMsgNum;
+    uint16_t maxLifeTick;
+    uint8_t wp;
+} IcanMsg;
+
 
 uint8_t if_get_source_id(ican_frame* iframe)
 {
@@ -154,12 +166,18 @@ uint16_t if_copy_data(const ican_frame ifs[], const uint8_t ifs_num, uint8_t* bu
 
     if (ifs[0].id.source_id >= 0xf8 && ifs[0].id.ack == 0) {
         memcpy(buf, &(ifs[0].frame_data[2]), ifs[0].dlc - 1);
+        if (ifs[0].dlc < 2 || ifs[0].dlc > 8) {
+            return 0;
+        }
         len = ifs[0].dlc - 2;
         i = 1;
     }
 
     for (; i < ifs_num; i++) {        
         memcpy(&buf[len], &(ifs[i].frame_data[1]), ifs[i].dlc - 1);
+        if (ifs[i].dlc < 1 || || ifs[i].dlc > 8) {
+            return 0;
+        }
         len += ifs[i].dlc - 1;
     }
 
@@ -205,6 +223,7 @@ static void if_fill_msg(ican_frame* iframe, const ican_id canid,
 
 static void if_split_msg(ican_frame ifs[], const uint8_t ifs_num)
 {
+#if 0
     uint8_t i;
     uint8_t mid_ifs_num;
 
@@ -223,7 +242,28 @@ static void if_split_msg(ican_frame ifs[], const uint8_t ifs_num)
 
     /* fill last seg */
     ifs[ifs_num - 1].frame_data[0] = ICAN_SPLIT_SEG_LAST;
+#else
+    uint8_t i;
+    uint8_t mid_ifs_num;
+
+    if (ifs_num < 2 || ifs_num > ICAN_SPLIT_MAX_SEGS)
+        return;
+
+    /* fill first seg ,contain frame num */
+    ifs[0].frame_data[0] = ICAN_SPLIT_SEG_FIRST | (ifs_num & 0x3f);
+
+    /* fill mid segs */
+    mid_ifs_num = ifs_num - 2;
+    if (mid_ifs_num > 0) {
+        for (i = 1; i <= mid_ifs_num; i++)
+            ifs[i].frame_data[0] = (uint8_t)(ICAN_SPLIT_SEG_MID | (i & 0x3f));
+    }
+
+    /* fill last seg */
+    ifs[ifs_num - 1].frame_data[0] = ICAN_SPLIT_SEG_LAST | ((ifs_num - 1) & 0x3f);
+#endif
 }
+
 
 
 uint8_t if_organize_msgs(ican_frame ifs[], const ican_id canid
@@ -267,12 +307,12 @@ uint8_t if_organize_msgs(ican_frame ifs[], const ican_id canid
 ierr_t ican_send_msg(const uint8_t channel, const ican_frame ifs[], const uint8_t ifs_num, uint32_t timeout)
 {
     uint8_t i;
-    uint32_t curtimerval;
+    uint32_t curTick;
 
     /* send msg */
-    curtimerval = ican_tmr_ms_get();
+    curTick = ican_tmr_ms_get();
     for (i = 0; i < ifs_num;) {     
-        if (ican_tmr_ms_delta(curtimerval) > timeout) {
+        if (ican_tmr_ms_delta(curTick) > timeout) {
             return ICAN_ERR_TIME_OUT;
         }
         if (!can_hal_send(channel, &ifs[i])) {
@@ -287,21 +327,24 @@ ierr_t ican_send_msg(const uint8_t channel, const ican_frame ifs[], const uint8_
 
 /**
 * \brief receive ican frames
-* \param ifs_num receive ican frames num
+* \param src_macid receive specified source frames excepet 0xff can receive anyone source
+* \param ifs_num return received ican frames num
 */
 ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[], uint8_t *ifs_num, const uint32_t timeout)
 {
+#if 0
     uint8_t recvf_num = 0;
     ierr_t ret;
-    uint32_t curtimerval;
+    uint32_t curTick;
 
-    curtimerval = ican_tmr_ms_get();
+    //static ican_frame recvRepos[4];
 
+    curTick = ican_tmr_ms_get();
     /* recv msg */
     do {
         /* recv one msg */ 
         while (1) {
-            if (ican_tmr_ms_delta(curtimerval) > timeout) {
+            if (ican_tmr_ms_delta(curTick) > timeout) {
                  return ICAN_ERR_TIME_OUT;
             }
             ifs[0].dlc = 0;
@@ -320,22 +363,22 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
             return ICAN_OK;
         }
         
-        if (ifs[0].frame_data[0] == ICAN_SPLIT_SEG_FIRST) {
+        if ((ifs[0].frame_data[0] & 0xc0) == ICAN_SPLIT_SEG_FIRST) {
             recvf_num = 1;
             break;
         }
         else {            
-            if (ican_tmr_ms_delta(curtimerval) > timeout) {
+            if (ican_tmr_ms_delta(curTick) > timeout) {
                 return ICAN_ERR_TIME_OUT;
             }
         }
     } while (1);
 
-    curtimerval = ican_tmr_ms_get();
+    curTick = ican_tmr_ms_get();
     /* recv mid & last seg msg */
     if (recvf_num == 1) {
         do {
-            if (ican_tmr_ms_delta(curtimerval) > timeout) {
+            if (ican_tmr_ms_delta(curTick) > timeout) {
                 return ICAN_ERR_TIME_OUT;
             }
             ifs[recvf_num].dlc = 0;
@@ -352,13 +395,13 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
                 break;
             }
 
-            if (ifs[recvf_num].frame_data[0] == ICAN_SPLIT_SEG_LAST) {
+            if ((ifs[recvf_num].frame_data[0] & 0xc0) == ICAN_SPLIT_SEG_LAST) {
                 ++recvf_num;
                 ret = ICAN_OK;
                 break;
             }
             ++recvf_num;
-            curtimerval = ican_tmr_ms_get();
+            curTick = ican_tmr_ms_get();
         } while (1);
     }
 
@@ -366,7 +409,164 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
         *ifs_num = recvf_num;
     }
 
-    return ret;
+    return ret;    
+#else
+    uint8_t i = 0, j = 0;
+    uint8_t splitFlag = 0;
+    uint32_t curTick;
+    //ierr_t ret;
+    ican_frame iframe;
+
+    static bool initFlag = false;
+    static IcanMsg icanmsg;
+
+    if (initFlag != true) {
+        for (i = 0; i < RECV_MAX_MSG_NUM; i++) {            
+            icanmsg.msgLifeTick[i] = 0;
+            icanmsg.msgValid[i] = false;
+            icanmsg.msgFrameNum[i] = 0;
+        }
+        icanmsg.wp = 0;
+        icanmsg.maxMsgNum = RECV_MAX_MSG_NUM;
+        icanmsg.maxLifeTick = MSG_MAX_LIFE_TICK;
+
+        initFlag = true;
+    }
+
+    curTick = ican_tmr_ms_get();
+    /* discard too old msg */
+    for (i = 0; i < RECV_MAX_MSG_NUM; i++) {
+        if ((ican_tmr_ms_delta(icanmsg.msgLifeTick[i])
+            > icanmsg.maxLifeTick)) {
+            icanmsg.msgFrameNum[i] = 0;
+            icanmsg.msgValid[i] = false;
+            icanmsg.ifs[i][0].id.src_mac_id = 0xff;
+        }
+    }
+
+    curTick = ican_tmr_ms_get();
+
+    /* try recv all msg */
+    do {
+        /* recv anyone frame */
+        iframe.dlc = 0;
+        while (1) {            
+            can_hal_recv(channel, 0xff, &iframe);
+            if (iframe.dlc > 0) {
+                break;
+            }
+
+            if (ican_tmr_ms_delta(curTick) >= timeout) {
+                break;
+            }
+        }
+
+        /* process recved one frame */
+        if (iframe.dlc > 0) {
+            splitFlag = iframe.frame_data[0];
+           
+            if (splitFlag == ICAN_NO_SPLIT_SEG) {
+                memcpy(&icanmsg.ifs[icanmsg.wp][0], &iframe, sizeof(ican_frame));
+                icanmsg.msgValid[icanmsg.wp] = true;
+                icanmsg.msgFrameNum[icanmsg.wp] = 1;
+                icanmsg.msgLifeTick[icanmsg.wp] = ican_tmr_ms_get();
+                icanmsg.wp = (icanmsg.wp + 1) % icanmsg.maxMsgNum;
+
+                iframe.dlc = 0;
+                continue;
+            }
+
+            if ((splitFlag & 0xc0) == ICAN_SPLIT_SEG_FIRST) {
+                memcpy(&icanmsg.ifs[icanmsg.wp][0], &iframe, sizeof(ican_frame));
+                icanmsg.msgValid[icanmsg.wp] = false;
+                icanmsg.msgFrameNum[icanmsg.wp] = 1;
+                icanmsg.msgLifeTick[icanmsg.wp] = ican_tmr_ms_get();
+                icanmsg.wp = (icanmsg.wp + 1) % icanmsg.maxMsgNum;
+
+                iframe.dlc = 0;
+                curTick = ican_tmr_ms_get();
+                continue;
+            }
+
+            if ((splitFlag & 0x3f) > (ICAN_SPLIT_MAX_SEGS - 1)) {
+                if (ican_tmr_ms_delta(curTick) >= timeout) {
+                    break;
+                }
+                continue;
+            }
+
+            if ((splitFlag & 0xc0) == ICAN_SPLIT_SEG_MID
+                || (splitFlag & 0xc0) == ICAN_SPLIT_SEG_LAST) {
+                for (i = 0; i < icanmsg.maxMsgNum; i++) {
+                    if (icanmsg.msgValid[i] == false) {
+                        if (icanmsg.ifs[i][0].id.src_mac_id == iframe.id.src_mac_id
+                            && icanmsg.ifs[i][0].id.func_id == iframe.id.func_id
+                            && icanmsg.ifs[i][0].id.source_id == iframe.id.source_id) {
+                            memcpy(&icanmsg.ifs[i][splitFlag & 0x3f],
+                                   &iframe, sizeof(ican_frame));
+                            icanmsg.msgValid[i] = false;
+                            icanmsg.msgFrameNum[i] += 1;
+                            icanmsg.msgLifeTick[i] = ican_tmr_ms_get();
+
+                            if (icanmsg.msgFrameNum[i] == (icanmsg.ifs[i][0].frame_data[0] & 0x3f)) {
+                                if ((icanmsg.ifs[i][icanmsg.msgFrameNum[i] - 1].frame_data[0] & 0xc0)
+                                    == ICAN_SPLIT_SEG_LAST) {
+                                    icanmsg.msgValid[i] = true;
+                                }
+                                else {
+                                    icanmsg.msgFrameNum[i] = 0;
+                                    icanmsg.msgValid[i] = false;
+                                    icanmsg.ifs[i][0].id.src_mac_id = 0xff;
+                                }
+                            }
+
+                            curTick = ican_tmr_ms_get();
+                            iframe.dlc = 0;
+                        }
+                        else {
+                            continue;
+                        }
+                    }//if (icanmsg.msgValid[i]
+                    else {
+                        continue;
+                    }
+                }//for
+            }//if ((splitFlag & 0xc0)
+        }//if (iframe.dlc > 0)
+
+        if (ican_tmr_ms_delta(curTick) >= timeout) {
+            break;
+        }
+    } while (1);
+
+    /* pick up one msg */
+    for (j = 0; j < icanmsg.maxMsgNum; j++) {
+        if (icanmsg.msgValid[j] == false) {
+            continue;
+        }
+        if (icanmsg.ifs[j][0].id.src_mac_id == src_macid) {
+            break;
+        }
+        if (src_macid == 0xff) {
+            break;
+        }
+    }
+
+    if (j == icanmsg.maxMsgNum) {
+        return ICAN_ERR_TIME_OUT;
+    }
+
+    for (i = 0; i < icanmsg.msgFrameNum[j]; i++) {
+        memcpy(&ifs[i], &icanmsg.ifs[j][i], sizeof(ican_frame));
+    }
+    *ifs_num = icanmsg.msgFrameNum[j];
+
+    icanmsg.msgFrameNum[j] = 0;
+    icanmsg.msgValid[j] = false;
+    icanmsg.ifs[j][0].id.src_mac_id = 0xff;
+
+    return ICAN_OK;
+#endif
 }
 
 

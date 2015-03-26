@@ -153,24 +153,26 @@ typedef struct _io_param {
 
 
 typedef struct _is_file_operations {    
-    ierr_t (*is_rd_di)(uint8_t src_id, uint8_t length, uint8_t* buff);    
-    ierr_t (*is_rd_ai)(uint8_t src_id, uint8_t length, uint8_t* buff);    
-    ierr_t (*is_rd_serial0)(uint8_t src_id, uint8_t length, uint8_t* buf);    
-    ierr_t (*is_rd_serial1)(uint8_t src_id, uint8_t length, uint8_t* buf);  
-    ierr_t (*is_rd_userdef)(uint8_t src_id, uint8_t length, uint8_t* buf); 
-    ierr_t (*is_rd_devinfo)(uint8_t src_id, uint8_t length, uint8_t* buf);    
+    ierr_t (*is_rd_di)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_rd_ai)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_rd_do)(uint8_t src_id, uint16_t length, uint8_t* buf);
+    ierr_t (*is_rd_ao)(uint8_t src_id, uint16_t length, uint8_t* buf);
+    ierr_t (*is_rd_serial0)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_rd_serial1)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_rd_userdef)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_rd_devinfo)(uint8_t src_id, uint8_t length, uint8_t* buf);
     ierr_t (*is_rd_cominfo)(uint8_t src_id, uint8_t length, uint8_t* buf);
-    ierr_t (*is_rd_ioparam)(uint8_t src_id, uint8_t subsrc_id, uint8_t length, uint8_t* buff);    
-    ierr_t (*is_rd_ioconfig)(uint8_t src_id, uint8_t subsrc_id, uint8_t length, uint8_t* buff);  
+    ierr_t (*is_rd_ioparam)(uint8_t src_id, uint8_t subsrc_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_rd_ioconfig)(uint8_t src_id, uint8_t subsrc_id, uint8_t length, uint8_t* buf);
     ierr_t (*is_wr_do)(uint8_t src_id, uint16_t length, uint8_t* buf);
-    ierr_t (*is_wr_ao)(uint8_t src_id, uint16_t length, uint8_t* buf);   
-    ierr_t (*is_wr_serial0)(uint8_t src_id, uint8_t length, uint8_t* buf);   
-    ierr_t (*is_wr_serial1)(uint8_t src_id, uint8_t length, uint8_t* buf);    
-    ierr_t (*is_wr_userdef)(uint8_t src_id, uint8_t length, uint8_t* buf);   
-    ierr_t (*is_wr_ioparam)(uint8_t src_id, uint8_t subsrc_id, uint16_t length, uint8_t* buf);    
+    ierr_t (*is_wr_ao)(uint8_t src_id, uint16_t length, uint8_t* buf);
+    ierr_t (*is_wr_serial0)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_wr_serial1)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_wr_userdef)(uint8_t src_id, uint8_t length, uint8_t* buf);
+    ierr_t (*is_wr_ioparam)(uint8_t src_id, uint8_t subsrc_id, uint16_t length, uint8_t* buf);
     ierr_t (*is_wr_ioconfig)(uint8_t src_id, uint8_t subsrc_id, uint16_t length, uint8_t* buf);
-    ierr_t (*is_cycle_timeout)(uint8_t* src_id, uint8_t* buff, uint8_t* length);
-    ierr_t (*is_check_event)(uint8_t* src_id, uint8_t* buff, uint8_t* length);
+    ierr_t (*is_cycle_timeout)(uint8_t* src_id, uint8_t* buf, uint8_t* length);
+    ierr_t (*is_check_event)(uint8_t* src_id, uint8_t* buf, uint8_t* length);
 } is_file_operations_t;
 
 

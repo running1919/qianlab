@@ -106,6 +106,7 @@ void can_configure(uint8_t channel, uint16_t baudrate)
         CAND_Init(&cand[1], CAN1, ID_CAN1, bdrate, BOARD_MCK);
         IRQ_ConfigureIT(ID_CAN1, 0, CAN1_IrqHandler);
         IRQ_EnableIT(ID_CAN1);
+        break;
 
     default :
         ican_printf("No CAN%d Interface\n\r");
@@ -287,6 +288,7 @@ void can_get_id(uint8_t channel, uint8_t mailbox_id, ican_id* id)
     id->source_id   = msg_id & 0xff; //8bit
 }
 
+
 /**
 * \return msg len
 */
@@ -331,6 +333,7 @@ void can_read_mail(uint8_t channel, uint8_t mailbox_id, uint8_t* buff, uint8_t s
          memcpy(buff, mbtrf->msgData, len);
          mbtrf->bMsgLen = 0;
          memset(mbtrf->msgData, 0xFF, len);
+         
          //mbtrf->bMsgLen -= len;
          //if (mbtrf->bMsgLen > 0) {
          //    memcpy((uint8_t*)mbtrf->msgData, (uint8_t*)mbtrf->msgData + len, mbtrf->bMsgLen);
@@ -372,9 +375,12 @@ void can_write_mail(uint8_t channel, uint8_t mailbox_id, const uint8_t* buff, ui
 }
 
 
-void can_clear_trans_buf(uint8_t channel, uint8_t mailbox_id, bool all)
+void can_clear_mailbox(uint8_t channel, uint8_t mailbox_id, bool all)
 {
     uint8_t i;
+    sCandTransfer *mbtrf;
+
+    mbtrf = &trans_mailboxs[channel][mailbox_id].transfer;
     
     if (all) {
         for (i = 0; i <= CAN_NUM_MAILBOX; i++) {
@@ -383,7 +389,8 @@ void can_clear_trans_buf(uint8_t channel, uint8_t mailbox_id, bool all)
         return;
     }
 
-    trans_mailboxs[channel][mailbox_id].transfer.bMsgLen = 0;
+    mbtrf->bMsgLen = 0;
+    memset(mbtrf->msgData, 0xFF, 8);
 }
 
 

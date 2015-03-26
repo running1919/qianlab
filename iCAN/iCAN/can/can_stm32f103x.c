@@ -6,7 +6,7 @@
 * Copyright (C) 2014-2015, Qian Runsheng<546515547@qq.com>
 */
 
-#include <cand.h>
+#include "../../driver/stm32f103x/cand.h"
 #include "can_stm32f103x.h"
 
 #include "../include/can_type.h"
@@ -111,6 +111,8 @@ void can_configure(uint8_t channel, uint16_t baudrate)
     case 0 :
         RxBuf.rxMsg = rxMsgBuf;
         RxBuf.fifonum = ICAN_SPLIT_MAX_SEGS;
+        RxBuf.rp = 0;
+        RxBuf.wp = 0;
         CAND_Init(&InitType, &FilterInitType, &RxBuf);
         break;
 
@@ -269,6 +271,11 @@ void can_get_id(uint8_t channel, uint8_t mailbox_id, ican_id* id)
 */
 uint8_t can_check_inbox(uint8_t channel, uint8_t* mailbox_id)
 {
+    if (RxBuf.rp != RxBuf.wp) {
+        *mailbox_id = RxBuf.rp;
+        return RxBuf.rxMsg[RxBuf.rp].DLC;
+    }
+#if 0
     uint8_t i ,j;
     CanRxMsg* rxmsg = RxBuf.rxMsg;
 
@@ -284,7 +291,7 @@ uint8_t can_check_inbox(uint8_t channel, uint8_t* mailbox_id)
         }
         ++i;
     }
-
+#endif
     return 0;
 }
 
@@ -304,7 +311,8 @@ void can_read_mail(uint8_t channel, uint8_t mailbox_id, uint8_t* buff, uint8_t s
 
         memcpy(buff, &rxmsg[mailbox_id].Data, len);
         rxmsg[mailbox_id].DLC = 0;
-        RxBuf.alldlc -= len;      
+        RxBuf.alldlc -= len;
+        RxBuf.rp = (RxBuf.rp + 1) % RxBuf.fifonum;
     }
 }
 

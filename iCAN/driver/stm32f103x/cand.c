@@ -265,22 +265,24 @@ void CANx_RxHandler(void)
 {
     //FlagStatus fmp = RESET;
 
-    while(CAN_GetFlagStatus(CANx, CAN_FLAG_FMP0) == SET){
-        if (RxFIFOBuf->usednum < RxFIFOBuf->fifonum) {
-            RxFIFOBuf->usednum++;
-        }
+    while (CAN_GetFlagStatus(CANx, CAN_FLAG_FMP0) == SET) {
+        //if (RxFIFOBuf->usednum < RxFIFOBuf->fifonum) {
+        //    RxFIFOBuf->usednum++;
+        //}
 
-        CAN_Receive(CAN1, CAN_FIFO0, &RxFIFOBuf->rxMsg[RxFIFOBuf->usednum - 1]);
-        RxFIFOBuf->alldlc += RxFIFOBuf->rxMsg[RxFIFOBuf->usednum - 1].DLC;
+        CAN_Receive(CAN1, CAN_FIFO0, &RxFIFOBuf->rxMsg[RxFIFOBuf->wp]);
+        RxFIFOBuf->alldlc += RxFIFOBuf->rxMsg[RxFIFOBuf->wp].DLC;
+        RxFIFOBuf->wp = (RxFIFOBuf->wp + 1) % RxFIFOBuf->fifonum;
     }
 
-    while(CAN_GetFlagStatus(CANx, CAN_FLAG_FMP1) == SET){
-        if (RxFIFOBuf->usednum < RxFIFOBuf->fifonum) {
-            RxFIFOBuf->usednum++;
-        }
+    while (CAN_GetFlagStatus(CANx, CAN_FLAG_FMP1) == SET) {
+        //if (RxFIFOBuf->usednum < RxFIFOBuf->fifonum) {
+        //    RxFIFOBuf->usednum++;
+        //}
 
-        CAN_Receive(CAN1, CAN_FIFO1, &RxFIFOBuf->rxMsg[RxFIFOBuf->usednum - 1]);
-        RxFIFOBuf->alldlc += RxFIFOBuf->rxMsg[RxFIFOBuf->usednum - 1].DLC;
+        CAN_Receive(CAN1, CAN_FIFO0, &RxFIFOBuf->rxMsg[RxFIFOBuf->wp]);
+        RxFIFOBuf->alldlc += RxFIFOBuf->rxMsg[RxFIFOBuf->wp].DLC;
+        RxFIFOBuf->wp = (RxFIFOBuf->wp + 1) % RxFIFOBuf->fifonum;
     }
 }
 
@@ -303,6 +305,10 @@ void CANx_SceHandler(void)
             printStr("-error warning, REC: %d, TEC: %d\n\r", rec, tec);
 
             CanExceptVal = 1;
+            if (rec == 255 || tec == 255) {
+                CAN_ITConfig(CANx, CAN_ERR_INT, DISABLE);
+            }
+            
             CAN_ClearITPendingBit(CANx, CAN_IT_EWG);
         }
 
@@ -317,6 +323,7 @@ void CANx_SceHandler(void)
             printStr("-error bus off\n\r");
 
             CanExceptVal = 3;
+            CAN_ITConfig(CANx, CAN_ERR_INT, DISABLE);
             CAN_ClearITPendingBit(CANx, CAN_IT_BOF);
         }
             

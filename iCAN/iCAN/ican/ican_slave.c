@@ -19,6 +19,8 @@
 static ican_slave_t islavedev;
 static ican_frame ssendframes[ICAN_SPLIT_MAX_SEGS];
 static ican_frame srecvframes[ICAN_SPLIT_MAX_SEGS];
+static const uint8_t macid_table[ICAN_SLAVE_NUM] = ICAN_SLAVE_MACID;
+
 
 
 static ierr_t __is_rd_di(uint8_t src_id, uint8_t length, uint8_t* buff)
@@ -89,6 +91,82 @@ static ierr_t __is_rd_ai(uint8_t src_id, uint8_t length, uint8_t* buff)
             fops->is_rd_ai(src_id, length, buff);
         }
     }
+
+    return ICAN_OK;
+#else
+    return ICAN_ERR_LEN_ZERO;
+#endif
+}
+
+
+static ierr_t __is_rd_do(uint8_t src_id, uint16_t length, uint8_t* buff)
+{
+#if (ICAN_DO_LEN > 0)
+    ican_io_src* pio_src;
+    ican_io_param* pio_param;
+    ican_slave_t* pisdev;
+    is_file_operations_t* fops;
+    uint8_t offset = 0;
+
+    pisdev = &islavedev;
+    pio_src = &pisdev->io_src;
+    pio_param = &pisdev->io_param;
+    fops = pisdev->ifops;
+    offset = src_id - ICAN_SRC_DO_START;
+
+    if (pio_param->do_length == 0) {
+        return ICAN_ERR_LEN_ZERO;
+    }
+
+    if (offset > ICAN_DO_NUM && length > pio_param->do_length) {
+        return ICAN_ERR_PARAM;
+    }
+    else {
+        if ((fops == NULL) || (fops->is_wr_do == NULL)) {
+            memcpy(buff, &pio_src->do_data[offset][0], length);
+        }
+        else {           
+            fops->is_rd_do(src_id, length, buff);
+        }
+    }
+
+    return ICAN_OK;
+#else
+    return ICAN_ERR_LEN_ZERO;
+#endif
+}
+
+
+static ierr_t __is_rd_ao(uint8_t src_id, uint16_t length, uint8_t* buff)
+{
+#if (ICAN_AO_LEN > 0)
+     ican_io_src* pio_src;
+     ican_io_param* pio_param;
+     ican_slave_t* pisdev;
+     is_file_operations_t* fops;
+     uint8_t offset = 0;
+     
+     pisdev = &islavedev;
+     pio_src = &pisdev->io_src;
+     pio_param = &pisdev->io_param;
+     fops = pisdev->ifops;
+     offset = src_id - ICAN_SRC_AO_START;
+     
+     if (pio_param->ao_length == 0) {
+         return ICAN_ERR_LEN_ZERO;
+     }
+     
+     if (offset > ICAN_AO_NUM && length > pio_param->ao_length) {
+         return ICAN_ERR_PARAM;
+     }
+     else {
+         if ((fops == NULL) || (fops->is_wr_ao == NULL)) {
+             memcpy(buff, &pio_src->ao_data[offset][0], length);
+         }
+         else {           
+             fops->is_rd_ao(src_id, length, buff);
+         }
+     }
 
     return ICAN_OK;
 #else
@@ -619,7 +697,8 @@ static ierr_t ican_slave_read(ican_frame* piframe)
 
     memset(buff, 0, length);
 
-    if (src_id >= ICAN_IO_CONFIG_START) {
+    if (src_id >= ICAN_IO_CONFIG_START
+        && src_id <= ICAN_IO_CONFIG_START + ICAN_IO_CONFIG_SIZE) {
         subsrc_id = if_get_subsrc_id(piframe);
         ret = __is_rd_ioconfig(src_id, subsrc_id, length, buff);
     }
@@ -642,8 +721,14 @@ static ierr_t ican_slave_read(ican_frame* piframe)
     else if (src_id >= ICAN_SRC_SERIAL0_START) {
         ret = __is_rd_serail0(src_id, length, buff);
     }
-    else if (src_id >= ICAN_SRC_AI_START && src_id < ICAN_SRC_AO_START) {
+    else if (src_id >=ICAN_SRC_AO_START) {
+        ret = __is_rd_ao(src_id, length, buff);
+    }
+    else if (src_id >= ICAN_SRC_AI_START) {
         ret = __is_rd_ai(src_id, length, buff);
+    }
+    else if (src_id >= ICAN_SRC_DO_START) {
+        ret = __is_rd_do(src_id, length, buff);
     }
     else if (src_id < ICAN_SRC_DO_START) {
         ret = __is_rd_di(src_id, length, buff);
@@ -698,7 +783,8 @@ static ierr_t ican_slave_write(ican_frame* piframe, const uint8_t frames_num)
         return ICAN_ERR_PARAM;
     }    
 
-    if (src_id >= ICAN_IO_CONFIG_START) {        
+    if (src_id >= ICAN_IO_CONFIG_START
+        && src_id <= ICAN_IO_CONFIG_START + ICAN_IO_CONFIG_SIZE) {       
         ret = __is_wr_ioconfig(src_id, subsrc_id, length, buff);
     }
     else if (src_id >= ICAN_IO_PARAM_START) {       
@@ -1086,7 +1172,7 @@ static void ican_poll_errresp(uint8_t channel, uint8_t func_id, uint8_t src_id, 
     }
 
     pisdev = &islavedev;
-    canid.src_mac_id = DEV_MAC_ID;
+    canid.src_mac_id = pisdev->dev_macid;
     canid.dest_mac_id = pisdev->com_info.master_mac_id;
     canid.source_id = src_id;
     canid.func_id = 0x0f;
@@ -1214,19 +1300,21 @@ ierr_t ican_slave_poll(uint8_t channel)
 /**
 * \brief init the first 'channel' can controler as slave
 * \param channel can controler id
+* \param devMacId device MACID
 * \return true is OK, false is failed
+* \note devMacId setted by calling ican_slave_get_macid()
 */
-bool ican_slave_init(uint8_t channel)
+bool ican_slave_init(uint8_t channel, uint8_t devMacId)
 {
     ican_slave_t* pisdev;
 
-    if (!ican_can_init(channel, DEV_MAC_ID, BAUD_RATE)) {
+    if (!ican_can_init(channel, devMacId, BAUD_RATE)) {
         return false;
     }
 
     pisdev = &islavedev;    
     pisdev->dev_status                = ICAN_IN_DISCONNECT;
-    pisdev->dev_macid                 = DEV_MAC_ID;
+    pisdev->dev_macid                 = devMacId;
     pisdev->dev_channel               = channel;
     
     pisdev->dev_info.vendor_id        = VENDOR_ID;
@@ -1236,7 +1324,7 @@ bool ican_slave_init(uint8_t channel)
     pisdev->dev_info.firmware_version = FIRMWARE_VERSION;
     pisdev->dev_info.serial_number    = SERIAL_NUMBER;
 
-    pisdev->com_info.dev_mac_id       = DEV_MAC_ID;
+    pisdev->com_info.dev_mac_id       = devMacId;
     pisdev->com_info.baud_rate        = BAUD_RATE;
     pisdev->com_info.user_baud_rate   = USER_BAUD_RATE;
     pisdev->com_info.cyclic_param     = CYCLIC_PARAM;
@@ -1283,6 +1371,19 @@ void ican_slave_init_fops(void)
     ican_slave_t* pisdev = &islavedev;
 
     pisdev->ifops = NULL;
+}
+
+/**
+* \biref get valid macid
+* \note index must less than ICAN_SLAVE_NUM
+*/
+uint8_t ican_slave_get_macid(uint8_t index)
+{
+    if (index >= ICAN_SLAVE_NUM) {
+        return 0xff;
+    }
+
+    return macid_table[index];
 }
 /** @}*/
 

@@ -16,7 +16,7 @@
  * Note: The IAR 'General Options' -> 'Library Configration'
  * -> 'semihosted' must be enable.
  */
-#define DBUG_SEMIHOSTED
+//#define DBUG_SEMIHOSTED
 
 void usartConsoleInit(void);
 void usartPutchar(int c);

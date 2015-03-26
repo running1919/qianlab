@@ -1,5 +1,5 @@
 /**
-* @file tes_sam9x25.c
+* @file test_sam9x25.c
 *
 * ican example
 * 
@@ -470,7 +470,7 @@ void main(void)
     ifops.is_cycle_timeout = is_cycle_timeout;
     ifops.is_check_event = is_check_event;
     
-    ican_slave_init(ICAN_SLAVE_CHANNEL);
+    ican_slave_init(ICAN_SLAVE_CHANNEL, ican_slave_get_macid(0));
     ican_slave_set_fops(&ifops);
 
     uint32_t delta1_start = ican_tmr_ms_get();

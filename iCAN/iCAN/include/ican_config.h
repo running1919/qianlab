@@ -16,7 +16,6 @@
 
 #define ICAN_SLAVE_MACID        {0x11, 0x12, 0x13, 0x14}
 #define ICAN_SLAVE_NUM          4    //value must equal macid's num
-#define DEV_MAC_ID              0x12 //<0xff, ican as slave device id
 #define MASTER_MAC_ID           0x78 //<0xff, ican as master device id
 
 
@@ -113,6 +112,8 @@
 
 //max segments by one transfer 
 #define ICAN_SPLIT_MAX_SEGS     6       // <=64
+#define RECV_MAX_MSG_NUM        4
+
 
 //ican debug mode control
 #define DEBUG_ICAN              1       //1 enable, 0 disable

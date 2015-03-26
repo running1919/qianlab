@@ -18,7 +18,7 @@
 #include "../iCAN/include/ican_type.h"
 
 
-#define CAN_AS_MASTER
+//#define CAN_AS_MASTER
 #ifndef CAN_AS_MASTER
 ierr_t isrd_di(uint8_t src_id, uint8_t length, uint8_t* buff)
 {
@@ -458,7 +458,7 @@ void main(void)
     ifops.is_cycle_timeout = is_cycle_timeout;
     ifops.is_check_event = is_check_event;
     
-    ican_slave_init(ICAN_SLAVE_CHANNEL);
+    ican_slave_init(ICAN_SLAVE_CHANNEL, ican_slave_get_macid(0));
     ican_slave_set_fops(&ifops);
 
     uint32_t delta1_start = ican_tmr_ms_get();

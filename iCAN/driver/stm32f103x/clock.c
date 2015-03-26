@@ -17,7 +17,11 @@
 
 
 //#define RTC_CLK_USE_LSE
+#define PRECISION_IN_MS
 
+static time_t seconds = 0;
+static time_t alarm = 0;
+static void (*alarmProc)(void) = NULL;
 
 /**
   * @brief  Configures the nested vectored interrupt controller.
@@ -177,8 +181,13 @@ static void rtcConfig(void)
     /* Wait until last write operation on RTC registers has finished */
     RTC_WaitForLastTask();
 
-    /* Set RTC prescaler: set RTC period to 1sec */
+#ifndef PRECISION_IN_MS
+    /* Set RTC prescaler: set RTC period to 1 sec */
     RTC_SetPrescaler(40000); //LSI default is 40k HZ
+#else
+    /* Set RTC prescaler: set RTC period to 1ms */
+    RTC_SetPrescaler(40); //LSI default is 40k HZ
+#endif
 
     /* Wait until last write operation on RTC registers has finished */
     RTC_WaitForLastTask();
@@ -207,32 +216,59 @@ void clockInit(void)
 #endif
 
 
-time_t getTime(void)
+timeval getTime(void)
 {
-    return RTC_GetCounter();
+    timeval tv;
+#ifndef PRECISION_IN_MS
+    tv.tv_sec = RTC_GetCounter();
+#else
+    tv.tv_sec = seconds;
+    tv.tv_msec = RTC_GetCounter();
+#endif
+    return tv;
 }
 
 
-void setTime(time_t t)
+void setTime(timeval tv)
 {
     RTC_WaitForLastTask();
-    RTC_SetCounter(t);
+#ifndef PRECISION_IN_MS
+    RTC_SetCounter(tv.tv_sec);
+#else
+    seconds = tv.tv_sec;
+    RTC_SetCounter(tv.tv_msec);
+#endif
     RTC_WaitForLastTask();
+
 }
 
 
-void setAlarm(time_t t)
+void setAlarm(time_t t, void (*proc)(void))
 {
+#ifndef PRECISION_IN_MS
+    if (t <= RTC_GetCounter()) {
+        return;
+    }
+
     RTC_WaitForLastTask();
     RTC_SetAlarm(t);
     RTC_WaitForLastTask();
     RTC_ITConfig(RTC_IT_ALR, ENABLE);
     RTC_WaitForLastTask();
+#else
+    if (t <= seconds) {
+        return;
+    }
+
+    alarm = t;
+#endif
+    alarmProc = proc;
 }
 
 
 void cancelAlarm(void)
-{
+{    
+#ifndef PRECISION_IN_MS
     RTC_WaitForLastTask();
     RTC_SetAlarm(0);
     RTC_WaitForLastTask();
@@ -240,30 +276,94 @@ void cancelAlarm(void)
     RTC_WaitForLastTask();
     RTC_ClearITPendingBit(RTC_IT_ALR);
     RTC_WaitForLastTask();
+#else
+    alarm = 0;    
+#endif
+    alarmProc = NULL;
 }
+
+
+VSysClock getSysTime(void)
+{
+    VSysClock vsc;
+    struct tm *ptm;
+    
+    ptm = gmtime(&seconds);//ptm = localtime(&seconds);
+    vsc.wYear = ptm->tm_year + 1900;
+    vsc.byMonth = ptm->tm_mon;
+    vsc.byDay = ptm->tm_mday;
+    vsc.byWeek = ptm->tm_wday;
+    vsc.byHour = ptm->tm_hour;
+    vsc.byMinute = ptm->tm_min;
+    vsc.bySecond = ptm->tm_sec;
+    vsc.wMSecond = RTC_GetCounter();
+
+    return vsc;
+}
+
+
+void setSysTime(VSysClock* vsc)
+{
+    struct tm stm;
+    time_t t;
+   
+    stm.tm_year = vsc->wYear - 1900;
+    stm.tm_mon = vsc->byMonth;
+    stm.tm_mday = vsc->byDay;
+    stm.tm_wday = vsc->byWeek;
+    stm.tm_hour = vsc->byHour;
+    stm.tm_min = vsc->byMinute;
+    stm.tm_sec = vsc->bySecond;
+    stm.tm_isdst = 0;//Disable Daylight Saving Time
+
+    t = mktime(&stm);
+
+    RTC_WaitForLastTask();
+    RTC_SetCounter(vsc->wMSecond);
+    RTC_WaitForLastTask();
+    seconds = t;
+}
+
 
 void rtcIrqHandler(void)
 {
     if (RTC_GetITStatus(RTC_IT_SEC) != RESET) {
         RTC_ClearITPendingBit(RTC_FLAG_SEC);
+#ifdef PRECISION_IN_MS
+        if (RTC_GetCounter() / 999 >= 1) {
+            RTC_WaitForLastTask();
+            RTC_SetCounter(0);
+            RTC_WaitForLastTask();
+
+            ++seconds;
+        }
+#endif
     }
 
     /* ignore overflow */
     //if (RTC_GetITStatus(RTC_IT_OW) != RESET) {
     //    RTC_ClearITPendingBit(RTC_FLAG_OW);
     //}
-
+#ifndef PRECISION_IN_MS
     if (RTC_GetITStatus(RTC_IT_ALR) != RESET) {
         RTC_ClearITPendingBit(RTC_FLAG_ALR);
-        printStr("ALARM---\n\r");
+        alarmProc();
     }
+#else
+    if (alarm == seconds) {
+        alarmProc();
+    }
+#endif
 }
 
 
 /* STD C TIME FUNC */
 __time32_t __time32(__time32_t *p)
 {
-    //return sysTime;
-    return RTC_GetCounter();
+#ifndef PRECISION_IN_MS
+    RTC_GetCounter();
+#else
+    return seconds;
+#endif
 }
 

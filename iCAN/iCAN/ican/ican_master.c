@@ -20,6 +20,7 @@ static ican_frame msendframes[ICAN_SPLIT_MAX_SEGS];
 static ican_frame mrecvframes[ICAN_SPLIT_MAX_SEGS];
 static const uint8_t slave_macid_table[ICAN_SLAVE_NUM] = ICAN_SLAVE_MACID;
 
+
 static uint8_t smt_get_index(uint8_t slave_macid)
 {
     uint8_t i = 0;

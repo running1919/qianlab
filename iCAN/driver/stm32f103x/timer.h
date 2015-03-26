@@ -9,11 +9,15 @@
 #ifndef __TIMER_H__
 #define __TIMER_H__
 
+#include <stdint.h>
+#include <stdbool.h>
 
 void timerInit(void);
 void timerStart(void);
 void timerStop(void);
-void timerRegIrqFunc(void (*func)(void), uint32_t peridMs, int32_t repeatTimes);
+bool timerRegIrqFunc(void (*func)(void), uint32_t peridMs, int32_t repeatTimes);
+void timerUnRegIrqFunc(void (*func)(void));
+void timerUnRegIrqFuncsAll(void);
 
 void irqTimHandler(void);
 

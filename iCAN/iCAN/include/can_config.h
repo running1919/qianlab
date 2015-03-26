@@ -10,7 +10,7 @@
 #define __CAN_CONFIG_H__
 
 /** Number of CAN peripherals */
-#define NUM_CAN_IF      1
+#define NUM_CAN_IF      2
 
 #endif
 

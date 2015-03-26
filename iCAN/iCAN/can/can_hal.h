@@ -40,6 +40,8 @@ void can_mb_free(uint8_t channel, uint8_t mb_id);
 uint8_t can_check_inbox(uint8_t channel, uint8_t* mb_id);
 bool can_check_outbox(uint8_t channel, uint8_t mb_id);
 
+void can_clear_mailbox(uint8_t channel, uint8_t mailbox_id, bool all);
+
 void can_get_id(uint8_t channel, uint8_t mb_id, ican_id* id);
 void can_set_id(uint8_t channel, uint8_t mb_id, const ican_id* id);
 
