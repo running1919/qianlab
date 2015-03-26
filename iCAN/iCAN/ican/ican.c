@@ -175,7 +175,7 @@ uint16_t if_copy_data(const ican_frame ifs[], const uint8_t ifs_num, uint8_t* bu
 
     for (; i < ifs_num; i++) {        
         memcpy(&buf[len], &(ifs[i].frame_data[1]), ifs[i].dlc - 1);
-        if (ifs[i].dlc < 1 || || ifs[i].dlc > 8) {
+        if (ifs[i].dlc < 1 || ifs[i].dlc > 8) {
             return 0;
         }
         len += ifs[i].dlc - 1;
