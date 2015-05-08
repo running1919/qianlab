@@ -109,7 +109,7 @@ typedef struct _CandTransfer {
     //void* pArg;             /**< Callback arguments */
 
     uint32_t dwMsgID;       /**< Message ID _MIDx */
-    uint32_t msgData[2];    /**< Message data */
+    uint32_t msgData[2];     /**< Message data */
     uint8_t bMailbox;       /**< Mailbox used */
     uint8_t bMsgLen;        /**< Message length */
     uint8_t bState;         /**< Transfer state */
@@ -137,6 +137,18 @@ typedef struct _Cand {
     uint8_t bState;             /**< CAN states */
 } sCand;
 
+typedef struct __canMsg {
+    uint32_t msgLen;
+    uint32_t msgID;
+    uint8_t msgData[8];
+} canMsg;
+
+typedef struct __canRxfifo {
+    canMsg *rxmsg;
+    uint16_t rp;
+    uint16_t wp;
+    uint16_t fifoNum;
+} canRxfifo;
 
 /*----------------------------------------------------------------------------
  *        Exported functions
@@ -156,6 +168,9 @@ extern uint8_t CAND_ConfigureTransfer(sCand * pCand,
                                       sCandTransfer * pXfr);
 extern uint8_t CAND_Transfer(sCand * pCand,sCandTransfer * pXfr);
 extern void CAND_StartTransfers(sCand * pCand,uint32_t bmMbs);
-extern uint8_t CAND_IsTransferDone(sCandTransfer * pXfr);
+extern uint8_t CAND_IsTransferDone(sCand* pCand, sCandTransfer * pXfr);
+extern void CAND_RegFifo(uint8_t channel, canRxfifo* pRxFiFo);
+
 /**@}*/
 #endif /* #ifndef _CAN_H_ */
+

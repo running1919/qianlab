@@ -9,6 +9,7 @@
 #ifndef __CAN_SAM9X25_H
 #define __CAN_SAM9X25_H
 
+//#include "cand.h"
 
 
 /** CAN operation timeout (ms) */
@@ -20,6 +21,9 @@
 #define RECV_MB_START   2
 #define RECV_MB_END     7
 
+#define RECV_MB_NUM     (RECV_MB_END - RECV_MB_START + 1)
+#define SEND_MB_NUM     (CAN_NUM_MAILBOX - RECV_MB_NUM)
+
 
 typedef struct _Trans_Mailbox {
     sCandMbCfg mbcfg;
@@ -28,3 +32,4 @@ typedef struct _Trans_Mailbox {
 } sTransMailbox;
 
 #endif
+

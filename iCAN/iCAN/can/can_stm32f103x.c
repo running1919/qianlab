@@ -248,15 +248,11 @@ void can_set_id(uint8_t channel, uint8_t mailbox_id, const ican_id* id)
 }
 
 
-void can_get_id(uint8_t channel, uint8_t mailbox_id, ican_id* id)
+void can_get_id(uint32_t msg_id, ican_id* id)
 {
     if (id == NULL) {
         return;
     }
-
-    CanRxMsg* rxmsg = RxBuf.rxMsg;
-    uint32_t msg_id = rxmsg[mailbox_id].ExtId;
-
     msg_id = msg_id & 0x1fffffff;
 
     id->dest_mac_id = msg_id >> 21; //8bit
@@ -269,51 +265,33 @@ void can_get_id(uint8_t channel, uint8_t mailbox_id, ican_id* id)
 /**
 * \return msg len
 */
-uint8_t can_check_inbox(uint8_t channel, uint8_t* mailbox_id)
+bool can_check_inbox(uint8_t channel)
 {
     if (RxBuf.rp != RxBuf.wp) {
-        *mailbox_id = RxBuf.rp;
-        return RxBuf.rxMsg[RxBuf.rp].DLC;
+        return true;
     }
-#if 0
-    uint8_t i ,j;
-    CanRxMsg* rxmsg = RxBuf.rxMsg;
 
-    j = 0;
-    for (i = 0; i < 6;) {
-        if (rxmsg[i].DLC > 0) {
-            if (j != 3) {
-                ++j;
-                continue;
-            }
-            *mailbox_id = i;
-            return rxmsg[i].DLC;
-        }
-        ++i;
-    }
-#endif
-    return 0;
+    return false;
 }
 
 /**
 * \note clear buff after get data
 */
-void can_read_mail(uint8_t channel, uint8_t mailbox_id, uint8_t* buff, uint8_t size)
+void can_read_mail(uint8_t channel, ican_frame * iframe)
 {
     uint8_t len = 0;
-    CanRxMsg* rxmsg = RxBuf.rxMsg;    
+    CanRxMsg* rxmsg = &RxBuf.rxMsg[RxBuf.rp];    
 
-    if (rxmsg[mailbox_id].DLC > 0) {
-        len = size;
-        if (size > rxmsg[mailbox_id].DLC) {
-            len = rxmsg[mailbox_id].DLC;
-        }    
-
-        memcpy(buff, &rxmsg[mailbox_id].Data, len);
-        rxmsg[mailbox_id].DLC = 0;
-        RxBuf.alldlc -= len;
-        RxBuf.rp = (RxBuf.rp + 1) % RxBuf.fifonum;
+    len = rxmsg->DLC;
+    if (len > 0) {
+        can_get_id(rxmsg->ExtId, &iframe->id);
+        iframe->dlc = len;
+        memcpy(&iframe->frame_data[0], &rxmsg->Data, len);
+        
+        rxmsg->DLC = 0;
+        RxBuf.alldlc -= len;        
     }
+    RxBuf.rp = (RxBuf.rp + 1) % RxBuf.fifonum;
 }
 
 

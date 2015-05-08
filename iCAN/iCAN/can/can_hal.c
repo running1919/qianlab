@@ -60,34 +60,16 @@ bool can_hal_is_except(uint8_t channel)
 }
 
 
-//src_macid == 0xff can recv any node data
-void can_hal_recv(const uint8_t channel, const uint8_t src_macid, ican_frame * iframe)
+void can_hal_recv(const uint8_t channel, ican_frame * iframe)
 {
-    uint8_t size = 0;
-    uint8_t mailbox_id;
+    bool flag = 0;
 
-    size = can_check_inbox(channel, &mailbox_id);
-    if (iframe == NULL || size == 0) {
+    flag = can_check_inbox(channel);
+    if (iframe == NULL || flag == false) {
         return;
     }
-    
-    can_get_id(channel, mailbox_id, &iframe->id);
-    if (src_macid != 0xff) {
-        if(iframe->id.src_mac_id != src_macid) {
-            iframe->dlc = 0;
-            //iframe->id.source_id = 0;
-            //iframe->id.func_id = 0;
-            //iframe->id.ack = 0;
-            //iframe->id.dest_mac_id = 0;
-            //iframe->id.src_mac_id = 0;
-            return;
-        }
-    }
 
-    can_read_mail(channel, mailbox_id, &iframe->frame_data[0], size);
-    iframe->dlc = size;
-
-    can_transfer_start(channel, mailbox_id);
+    can_read_mail(channel, iframe);
 }
 
 

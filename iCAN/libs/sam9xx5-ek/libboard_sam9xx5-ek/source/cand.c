@@ -39,8 +39,6 @@
 
 #include <assert.h>
 
-#if defined(REG_CAN0_MR) || defined(REG_CAN_MR)
-
 /*----------------------------------------------------------------------------
  *        Local definitions
  *----------------------------------------------------------------------------*/
@@ -78,14 +76,14 @@
                     /*|CAN_SR_WAKEUP*/ \
                     /*|CAN_SR_TOVF*/ \
                     /*|CAN_SR_TSTP*/ \
+                    /*|CAN_SR_RBSY*/ \
+                    /*|CAN_SR_TBSY*/ \
+                    /*|CAN_SR_OVLSY*/ \
                     |CAN_SR_CERR \
                     |CAN_SR_SERR \
                     |CAN_SR_AERR \
                     |CAN_SR_FERR \
                     |CAN_SR_BERR \
-                    /*|CAN_SR_RBSY*/ \
-                    /*|CAN_SR_TBSY*/ \
-                    /*|CAN_SR_OVLSY*/ \
                     )
 /** CAN mailbox ID mask */
 #define CAN_ID_MASK (CAN_MID_MIDE | CAN_MID_MIDvA_Msk | CAN_MID_MIDvB_Msk)
@@ -96,6 +94,8 @@
 /*----------------------------------------------------------------------------
  *        Local variables
  *----------------------------------------------------------------------------*/
+static canRxfifo *rxFiFo[2] = {NULL, NULL};
+
 
 /*----------------------------------------------------------------------------
  *        Local Functions
@@ -165,12 +165,13 @@ static void CAND_InitXfr(sCand *pCand, sCandTransfer *pXfr, uint8_t bStart)
     else
         pXfr->bState = CAND_XFR_IDLE;
     /* Fill ID */
-    CAN_ConfigureMessageID(pCan, bMb, pXfr->dwMsgID);
+   	CAN_ConfigureMessageID(pCan, bMb, pXfr->dwMsgID);
     /* Fill data registers */
-    CAN_SetMessage(pCan, bMb, pXfr->msgData);
+    //CAN_SetMessage(pCan, bMb, pXfr->msgData);//注释掉这行,防止引起突然有数据过来引发错误
     /* Start TX if not RX */
     if ((dwMmr & CAN_MMR_MOT_Msk) > CAN_MMR_MOT_MB_RX_OVERWRITE)
     {
+    	CAN_SetMessage(pCan, bMb, pXfr->msgData);// add by qrs,2015-4-19
         CAN_MessageControl(pCan, bMb,
                            CAN_MCR_MDLC(pXfr->bMsgLen)
                            | (bStart ? CAN_MCR_MTCR : 0) );
@@ -188,10 +189,12 @@ static void CAND_EndXfr(sCand *pCand, sCandTransfer *pXfr, uint8_t bSC)
     if (!pCand) return;
     /* Return status */
     pXfr->bRC = bSC;
-    if (bSC >= CAND_ERROR)
+    if (bSC >= CAND_ERROR) {
         pXfr->bState = CAND_XFR_HALTED;
-    else if(pXfr->bState == CAND_XFR_TX)
+    }
+    else if(pXfr->bState == CAND_XFR_TX) {
         pXfr->bState = CAND_XFR_IDLE;
+    }
     /* Invoke callbacks */
 }
 
@@ -214,52 +217,53 @@ static void CAND_ResetMailboxes(sCand *pCand)
  */
 static void CAND_ErrorHandler(sCand *pCand, uint32_t dwErrS)
 {
-    TRACE_INFO("CAN[%x]: 0x%08x\n\r", pCand->pHw, dwErrS);
+    printf("CAN[%x]: 0x%08x\n\r", pCand->pHw, dwErrS);
     #if 1
     if (dwErrS & CAN_SR_ERRA)
     {
-        TRACE_ERROR_WP("-E- Active Mode: TEC %u, REC %u\n\r", 
+        printf("-E- Active Mode: TEC %u, REC %u\n\r", 
                        ((((pCand->pHw)->CAN_ECR) & CAN_ECR_TEC_Msk) >> CAN_ECR_TEC_Pos), 
                        ((((pCand->pHw)->CAN_ECR) & CAN_ECR_REC_Msk) >> CAN_ECR_REC_Pos));
     }
     if (dwErrS & CAN_SR_WARN)
     {
-        TRACE_ERROR_WP("Warning Limit: TEC %u, REC %u\n\r", 
+        printf("Warning Limit: TEC %u, REC %u\n\r", 
                       ((((pCand->pHw)->CAN_ECR) & CAN_ECR_TEC_Msk) >> CAN_ECR_TEC_Pos), 
                       ((((pCand->pHw)->CAN_ECR) & CAN_ECR_REC_Msk) >> CAN_ECR_REC_Pos));
     }
     if (dwErrS & CAN_SR_ERRP)
     {
-        TRACE_ERROR_WP("-E- Passive Mode: TEC %u, REC %u\n\r", 
+        printf("-E- Passive Mode: TEC %u, REC %u\n\r", 
                       ((((pCand->pHw)->CAN_ECR) & CAN_ECR_TEC_Msk) >> CAN_ECR_TEC_Pos), 
                       ((((pCand->pHw)->CAN_ECR) & CAN_ECR_REC_Msk) >> CAN_ECR_REC_Pos));
     }
     if (dwErrS & CAN_SR_BOFF)
     {
-        TRACE_ERROR_WP("Bus Off Mode, TEC %u\n\r", ((((pCand->pHw)->CAN_ECR) & CAN_ECR_TEC_Msk) >> CAN_ECR_TEC_Pos));
+        printf("Bus Off Mode, TEC %u\n\r", ((((pCand->pHw)->CAN_ECR) & CAN_ECR_TEC_Msk) >> CAN_ECR_TEC_Pos));
     }
     #endif
     if (dwErrS & CAN_SR_CERR)
     {
-        TRACE_ERROR_WP("-E- MB CRC\n\r");
+        printf("-E- MB CRC\n\r");
     }
     if (dwErrS & CAN_SR_SERR)
     {
-        TRACE_ERROR_WP("-E- MB Stuffing\n\r");
+        printf("-E- MB Stuffing\n\r");
     }
     if (dwErrS & CAN_SR_AERR)
     {
-        TRACE_ERROR_WP("-E- Ack\n\r");
+        printf("-E- Ack\n\r");
     }
     if (dwErrS & CAN_SR_FERR)
     {
-        TRACE_ERROR_WP("-E- Form\n\r");
+        printf("-E- Form\n\r");
     }
     if (dwErrS & CAN_SR_BERR)
     {
-        TRACE_ERROR_WP("-E- Bit\n\r");
+        printf("-E- Bit\n\r");
     }
 }
+
 
 /**
  * Handler for messages
@@ -270,29 +274,62 @@ static void CAND_MessageHandler(sCand *pCand)
     Can *pCan = pCand->pHw;
     sCandTransfer *pXfr;
     uint8_t bMb;
-    uint32_t dwMsr;
+    uint32_t dwMsr, dwMot, dwImr;
+    uint8_t canId = 0;
+
+    canRxfifo *prxfifo = NULL;
+    canMsg *pCurWpMsgBuf = NULL;
+
+    if (pCand->pHw == CAN1) {
+        canId = 1;
+    }
+    
     for (bMb = 0; bMb < CAN_NUM_MAILBOX; bMb ++)
     {
         /* Mailbox used ? */
         pXfr = pCand->pMbs[bMb];
         if (pXfr == NULL)
+    	{
             continue;
+		}
+
         /* Mailbox ready ? */
         dwMsr = CAN_GetMessageStatus(pCan, bMb);
         if ((dwMsr & CAN_MSR_MRDY) != CAN_MSR_MRDY)
+    	{
             continue;
+		}
+
+        dwMot = CAN_GetMessageMode(pCan, bMb) & CAN_MMR_MOT_Msk;
         /* Handle data */
-        switch (CAN_GetMessageMode(pCan, bMb) & CAN_MMR_MOT_Msk)
+        switch (dwMot)
         {
             case CAN_MMR_MOT_MB_RX_OVERWRITE: /** Next data overwrite current */
                 /*pXfr->bState = CAND_XFR_RX_ONE;*/
             case CAN_MMR_MOT_MB_RX:
             case CAN_MMR_MOT_MB_CONSUMER:   /** TX then RX message */
-                pXfr->bMsgLen = (dwMsr & CAN_MSR_MDLC_Msk) >> CAN_MSR_MDLC_Pos;
-                CAN_GetMessage(pCan, bMb, pXfr->msgData);
-                //printf("MB%d Get Msg ID 0x%x\n\r", bMb, CAN_GetMessageID(pCan, bMb));
+                if (rxFiFo[canId] == NULL) {
+                    break;
+                }
+                prxfifo = rxFiFo[canId];
+                pCurWpMsgBuf = &prxfifo->rxmsg[prxfifo->wp];
+                
+                CAN_GetMessage(pCan, bMb, (uint32_t *)pCurWpMsgBuf->msgData);
+                pCurWpMsgBuf->msgLen = (dwMsr & CAN_MSR_MDLC_Msk) >> CAN_MSR_MDLC_Pos;
+                pCurWpMsgBuf->msgID = CAN_GetMessageID(pCan, bMb);
+                prxfifo->wp = (prxfifo->wp + 1) % prxfifo->fifoNum;                
                 CAND_EndXfr(pCand, pXfr, CAND_OK);
-                break;
+
+                /*以下这三行代码是为了克服CPU的CAN中断缺陷，按照手册来理解其实不需要
+                 *这部分代码就可以实现下一次保文接受，但是在注释掉这部分代码，测试中
+                 *发现CAN中断(CAN的任何中断条件)会在某个不确定的时间内不再产生中断。
+                 */
+                dwImr = CAN_GetItMask(pCan) & 0x1fffffff;
+                CAN_DisableIt(pCan, 0x1fffffff);
+                CAN_EnableIt(pCan, dwImr);
+                
+                CAN_Command(pCan, 1 << bMb);//CAN_MessageRx(pCan, bMb);	
+				break;
 
             case CAN_MMR_MOT_MB_TX:
             case CAN_MMR_MOT_MB_PRODUCER:   /** RX then TX message */
@@ -300,11 +337,12 @@ static void CAND_MessageHandler(sCand *pCand)
                 break;
 
             default:
-                TRACE_ERROR("MB[%d] disabled\n\r", bMb);
                 CAND_EndXfr(pCand, pXfr, CAND_ERROR);
                 break;
         }
         /*if (pXfr->bState != CAND_XFR_RX_ONE)*/
+        if (dwMot == CAN_MMR_MOT_MB_TX
+            || dwMot == CAN_MMR_MOT_MB_PRODUCER)
         {
             /* Disable mailbox interrupt */
             CAN_DisableIt(pCan, 1 << bMb);
@@ -313,8 +351,10 @@ static void CAND_MessageHandler(sCand *pCand)
         }
     }
     /* All transfer finished ? */
-    if ((CAN_GetItMask(pCan)&CAN_MB_EVENTS) == 0)
+    if ((CAN_GetItMask(pCan)&CAN_MB_EVENTS) == 0) {
         pCand->bState = CAND_STATE_ACTIVATED;
+        //printf("cand into idle state\n\r");
+    }
 }
 
 /*----------------------------------------------------------------------------
@@ -333,7 +373,6 @@ uint8_t CAND_Init(sCand* pCand,
                Can *pHw, uint8_t bID,
                uint16_t wBaudrate, uint32_t dwMck)
 {
-
     pCand->pHw = pHw;
     pCand->bID = bID;
     PMC_EnablePeripheral(pCand->bID);
@@ -365,6 +404,15 @@ uint8_t CAND_Init(sCand* pCand,
     return CAND_OK;
 }
 
+void CAND_RegFifo(uint8_t channel, canRxfifo* pRxFiFo)
+{
+    if (channel > 2) {
+        return;
+    }
+
+    rxFiFo[channel] = pRxFiFo;
+}
+
 /**
  * Activate CAN.
  * \param pCand Pointer to CAN Driver instance.
@@ -382,14 +430,8 @@ void CAND_Activate(sCand *pCand)
     CAN_EnableIt(pCan, CAN_IER_WAKEUP);
     CAN_Enable(pCan, 1);
 }
-#if 0
-/**
- * Find good baudrate (activated).
- */
-void CAND_AutoBaudrate(sCand *pCand, uint16_t *pBuadList, uint16_t wListSize)
-{
-}
-#endif
+
+
 /**
  * Put into sleep mode
  * \param pCand Pointer to CAN Driver instance.
@@ -414,13 +456,14 @@ uint8_t CAND_IsReady(sCand *pCand)
  * Interrupt handler for CAN Driver.
  * \param pCand Pointer to CAN Driver instance.
  */
-void CAND_Handler(sCand *pCand)
-{
+void CAND_Handler(sCand *pCand){
+	
     Can *pHw = pCand->pHw;
     uint32_t dwSr = CAN_GetStatus(pHw);
     //uint32_t dwSm = CAN_GetItMask(pHw);
-    TRACE_INFO("%d:%8x\n\r", (pHw==CAN0)?0:1, dwSr);
-    /* Errors */
+
+    //printf("%d:%8x\n\r", (pHw==CAN0)?0:1, dwSr);
+    /* Errors */	
     if (dwSr & CAN_ERRS)
     {
         pCand->bState = CAND_STATE_ERROR;
@@ -444,6 +487,7 @@ void CAND_Handler(sCand *pCand)
             pCand->bState = CAND_STATE_ACTIVATED;
         }
     }
+
     /* Low-power Mode enabled */
     if (dwSr & CAN_SR_SLEEP)
     {
@@ -524,6 +568,7 @@ uint8_t CAND_Transfer(sCand *pCand, sCandTransfer *pXfr)
     if (!CAND_IsMbReady(pTx)) return CAND_BUSY;
     if (0 == CAN_GetMessageMode(pCan, bMb))
         return CAND_ERR_STATE;
+
     /* Configure and start transfer */
     CAND_InitXfr(pCand, pXfr, 1);
     /* Enable interrupts statuses */
@@ -603,11 +648,23 @@ void CAND_StartTransfers(sCand *pCand, uint32_t bmMbs)
  * Check if the transfer is finished.
  * \return 1 if it's ready to transfer data.
  */
-uint8_t CAND_IsTransferDone(sCandTransfer *pXfr)
+uint8_t CAND_IsTransferDone(sCand* pCand, sCandTransfer *pXfr)
 {
-    return CAND_IsMbReady(pXfr);
+    //uint32_t dwMsr;
+    uint8_t readyFlag = 0;
+
+    readyFlag = CAND_IsMbReady(pXfr);
+    if (readyFlag != 1) {
+        //dwMsr = CAN_GetMessageStatus(pCand->pHw, pXfr->bMailbox);
+        //if ((dwMsr & CAN_MSR_MRDY) == CAN_MSR_MRDY) {
+        //    CAND_EndXfr(pCand, pXfr, CAND_OK);
+        //}
+        readyFlag = CAND_IsMbReady(pXfr);
+    }
+        
+    return readyFlag;
 }
 
-#endif
+
 /**@}*/
 

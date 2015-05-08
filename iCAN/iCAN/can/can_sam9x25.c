@@ -5,26 +5,30 @@
 * 
 * Copyright (C) 2014-2015, Qian Runsheng<546515547@qq.com>
 */
-
 #include <board.h>
 #include "can_sam9x25.h"
-
+    
 #include "../include/can_type.h"
 #include "../include/ican_type.h"
 #include "../include/can_config.h"
 #include "../lib/ican_timer.h"
 #include "../lib/ican_stdio.h"
-
+    
 #include <stdio.h>
 #include <string.h>
 
 
 /** PIO for CAN */
-static const Pin pinsCAN[] = {PINS_CAN0, PINS_CAN1};
+static const Pin pinsCAN[] = {PINS_CAN0,PINS_CAN1};
 /** CAN Driver instance */
 static sCand cand[NUM_CAN_IF];
 /** CAN Transfer Buffer */
-static sTransMailbox trans_mailboxs[NUM_CAN_IF][CAN_NUM_MAILBOX];
+static sTransMailbox transMbs[NUM_CAN_IF][SEND_MB_NUM];
+static sTransMailbox recvsMbs[NUM_CAN_IF][RECV_MB_NUM];
+
+static canRxfifo rxMsgFiFO[NUM_CAN_IF];
+static canMsg rxMsgBuf[NUM_CAN_IF][ICAN_SPLIT_MAX_SEGS * 4];
+
 /** CAN Interrupt Mask */
 static uint32_t canIntMskInit = 0;
 
@@ -41,16 +45,15 @@ static void CAN1_IrqHandler(void)
 }
 
 
-static uint8_t _WaitXfrTO(sCandTransfer *pXfr)
+static uint8_t _WaitXfrTO(sCand* pCand, sCandTransfer *pXfr)
 {
     volatile uint32_t t = ican_tmr_ms_get();
     while (ican_tmr_ms_delta(t) < CAN_TO) {
-        if (CAND_IsTransferDone(pXfr))
+        if (CAND_IsTransferDone(pCand, pXfr))
             return 1;
     }
     return 0;
 }
-
 
 void can_configure(uint8_t channel, uint16_t baudrate)
 {
@@ -106,7 +109,6 @@ void can_configure(uint8_t channel, uint16_t baudrate)
         CAND_Init(&cand[1], CAN1, ID_CAN1, bdrate, BOARD_MCK);
         IRQ_ConfigureIT(ID_CAN1, 0, CAN1_IrqHandler);
         IRQ_EnableIT(ID_CAN1);
-        break;
 
     default :
         ican_printf("No CAN%d Interface\n\r");
@@ -120,8 +122,8 @@ bool can_active(uint8_t channel, uint8_t recv_macid)
     uint8_t i;
     volatile uint32_t tick;
     sCand *pCand;
-    sCandMbCfg *candCfg;
-    sCandTransfer *candTrf;    
+    sCandMbCfg *mbCfg;
+    sCandTransfer *trfCfg;
 
     if (channel > NUM_CAN_IF) {
         ican_printf("No CAN%d Interface\n\r");
@@ -133,19 +135,36 @@ bool can_active(uint8_t channel, uint8_t recv_macid)
     tick = ican_tmr_ms_get();
     while (ican_tmr_ms_delta(tick) < CAN_TO) {
         if (CAND_IsReady(pCand)) {
-            for (i = RECV_MB_START; i <= RECV_MB_END; i++) {
-                candCfg = &trans_mailboxs[channel][i].mbcfg;
-                candTrf = &trans_mailboxs[channel][i].transfer;
-            
-                candCfg->bMsgType = ICAN_MAIL_BOX_RX;
-                candCfg->bTxPriority = 0;
-                candCfg->dwMsgMask = (0xff << 21) | CAN_MAM_MIDE;
-                candTrf->bMailbox = i;
-                candTrf->dwMsgID = (recv_macid << 21) | CAN_MID_MIDE;
-                CAND_ConfigureTransfer(pCand, candCfg, candTrf);
-                CAND_StartTransfers(pCand, 0x1u << i);
+            /* init recv mailboxs */
+            for (i = 0; i < RECV_MB_NUM; i++) {
+                mbCfg = &recvsMbs[channel][i].mbcfg;
+                trfCfg = &recvsMbs[channel][i].transfer;
+                
+                mbCfg->bMsgType = ICAN_MAIL_BOX_RX;
+                mbCfg->bTxPriority = 0;
+                mbCfg->dwMsgMask = (0xff << 21) | CAN_MAM_MIDE;
+                trfCfg->bState = 0;
+                trfCfg->dwMsgID = (recv_macid << 21) | CAN_MID_MIDE;
+                trfCfg->bMailbox = i + RECV_MB_START;
+                CAND_ConfigureTransfer(pCand, mbCfg, trfCfg);
+                CAND_StartTransfers(pCand, 0x1u << (i + RECV_MB_START));
             }
 
+            /* init send mailboxs */
+            for (i = 0; i < SEND_MB_NUM; i++) {
+                transMbs[channel][i].transfer.bMsgLen = 0;
+                transMbs[channel][i].transfer.bState = 0;
+                transMbs[channel][i].mbcfg.bMsgType = 0;
+            }
+
+            /* init revc fifo and register fifo */
+            rxMsgFiFO[channel].rxmsg = rxMsgBuf[channel];
+            rxMsgFiFO[channel].rp = 0;
+            rxMsgFiFO[channel].wp = 0;
+            rxMsgFiFO[channel].fifoNum = sizeof(rxMsgBuf[channel]) /sizeof(canMsg);
+            CAND_RegFifo(channel, &rxMsgFiFO[channel]);
+
+            /* get interrupt mask */
             canIntMskInit = CAN_GetItMask(cand[channel].pHw);
             canIntMskInit &= 0x1fff0000;
             
@@ -230,14 +249,15 @@ bool can_mb_request(uint8_t channel, uint8_t* mailbox_id, uint8_t mail_type)
         return false;
     }
 
-    for (i = 0; i < RECV_MB_START; i++) {
-        if (trans_mailboxs[channel][i].request_state == MB_UNUSED) {
+    for (i = 0; i < SEND_MB_NUM; i++) {
+        if (transMbs[channel][i].request_state == MB_UNUSED) {
             *mailbox_id = i;
-            trans_mailboxs[channel][i].request_state = MB_USED;
-            trans_mailboxs[channel][i].mbcfg.bMsgType = mail_type;
-            trans_mailboxs[channel][i].mbcfg.dwMsgMask = CAN_MAM_MIDE | (0xff << 21);
-            trans_mailboxs[channel][i].mbcfg.bTxPriority = 0;
-            trans_mailboxs[channel][i].transfer.bMailbox = i;
+            transMbs[channel][i].request_state = MB_USED;
+            transMbs[channel][i].mbcfg.bMsgType = mail_type;
+            transMbs[channel][i].mbcfg.dwMsgMask = CAN_MAM_MIDE | (0xff << 21);
+            transMbs[channel][i].mbcfg.bTxPriority = 0;
+            transMbs[channel][i].transfer.bMailbox = i;
+            transMbs[channel][i].transfer.bState = 0;
             return true;
         }
     }
@@ -250,8 +270,9 @@ void can_mb_free(uint8_t channel, uint8_t mailbox_id)
 {
     sCand *pCand = &cand[channel];
 
-    trans_mailboxs[channel][mailbox_id].request_state = MB_UNUSED;
-    trans_mailboxs[channel][mailbox_id].mbcfg.bMsgType = 0;
+    transMbs[channel][mailbox_id].request_state = MB_UNUSED;
+    transMbs[channel][mailbox_id].mbcfg.bMsgType = 0;    
+    transMbs[channel][mailbox_id].transfer.bState = 0;
     CAND_ResetMailbox(pCand, mailbox_id, NULL);
 }
 
@@ -267,17 +288,15 @@ void can_set_id(uint8_t channel, uint8_t mailbox_id, const ican_id* id)
     msg_id |= (uint32_t)(id->dest_mac_id) << 21;
 
     msg_id |= CAN_MID_MIDE;
-    trans_mailboxs[channel][mailbox_id].transfer.dwMsgID = msg_id;    
+    transMbs[channel][mailbox_id].transfer.dwMsgID = msg_id;    
 }
 
 
-void can_get_id(uint8_t channel, uint8_t mailbox_id, ican_id* id)
+void can_get_id(uint32_t msg_id, ican_id* id)
 {
     if (id == NULL) {
         return;
     }
-    uint32_t msg_id = CAN_GetMessageID(cand[channel].pHw, mailbox_id);
-    //msg_id = trans_mailboxs[channel][mailbox_id].transfer.dwMsgID;
 
     msg_id = msg_id & 0x1fffffff;
 
@@ -288,57 +307,34 @@ void can_get_id(uint8_t channel, uint8_t mailbox_id, ican_id* id)
     id->source_id   = msg_id & 0xff; //8bit
 }
 
-
 /**
 * \return msg len
 */
-uint8_t can_check_inbox(uint8_t channel, uint8_t* mailbox_id)
+bool can_check_inbox(uint8_t channel)
 {
-    uint8_t i ,j;
-    sCandTransfer* mbtrf;
-
-    j = 0;
-    for (i = RECV_MB_START; i <= RECV_MB_END; i++) {
-        mbtrf = &trans_mailboxs[channel][i].transfer;
-        if (mbtrf->bMsgLen > 0) {
-            if (j != 3) {
-                ++j;
-                i = RECV_MB_START - 1;
-                continue;
-            }
-            *mailbox_id = i;
-            return mbtrf->bMsgLen;
-        }
+    if (rxMsgFiFO[channel].rp != rxMsgFiFO[channel].wp) {
+        return true;        
     }
 
-    return 0;
+    return false;
 }
 
 /**
 * \note clear buff after get data
 */
-void can_read_mail(uint8_t channel, uint8_t mailbox_id, uint8_t* buff, uint8_t size)
+void can_read_mail(uint8_t channel, ican_frame * iframe)
 {
     uint8_t len = 0;
-    sCandTransfer *mbtrf;
+    canMsg *pCanMsg = &rxMsgFiFO[channel].rxmsg[rxMsgFiFO[channel].rp];    
 
-    mbtrf = &trans_mailboxs[channel][mailbox_id].transfer;
-
-    if (mbtrf->bMsgLen > 0) {
-        len = size;
-        if (size > mbtrf->bMsgLen) {
-            len = mbtrf->bMsgLen;
-        }    
-
-         memcpy(buff, mbtrf->msgData, len);
-         mbtrf->bMsgLen = 0;
-         memset(mbtrf->msgData, 0xFF, len);
-         
-         //mbtrf->bMsgLen -= len;
-         //if (mbtrf->bMsgLen > 0) {
-         //    memcpy((uint8_t*)mbtrf->msgData, (uint8_t*)mbtrf->msgData + len, mbtrf->bMsgLen);
-         //}         
+    len = pCanMsg->msgLen;
+    if (len > 0) {
+        can_get_id(pCanMsg->msgID, &iframe->id);
+        iframe->dlc = len;
+        memcpy(&iframe->frame_data[0], pCanMsg->msgData, len);
+        pCanMsg->msgLen = 0;       
     }
+    rxMsgFiFO[channel].rp = (rxMsgFiFO[channel].rp + 1) % rxMsgFiFO[channel].fifoNum;
 }
 
 
@@ -346,10 +342,10 @@ void can_read_mail(uint8_t channel, uint8_t mailbox_id, uint8_t* buff, uint8_t s
 //0 is busy, 1 is ilde
 bool can_check_outbox(uint8_t channel, uint8_t mailbox_id)
 {
-    sCandTransfer *mbtrf;
-
-    mbtrf = &trans_mailboxs[channel][mailbox_id].transfer;
-    if (!CAND_IsTransferDone(mbtrf)) {
+    sCand* pCand = &cand[channel];
+    sCandTransfer *mbtrf = &transMbs[channel][mailbox_id].transfer;
+    
+    if (!CAND_IsTransferDone(pCand, mbtrf)) {
         return false;
     }
     else {
@@ -366,7 +362,7 @@ void can_write_mail(uint8_t channel, uint8_t mailbox_id, const uint8_t* buff, ui
     uint8_t len = size;
     sCandTransfer *mbtrf;
 
-    mbtrf = &trans_mailboxs[channel][mailbox_id].transfer;
+    mbtrf = &transMbs[channel][mailbox_id].transfer;
     if (size > 8) {
         len = 8;
     }
@@ -380,11 +376,11 @@ void can_clear_mailbox(uint8_t channel, uint8_t mailbox_id, bool all)
     uint8_t i;
     sCandTransfer *mbtrf;
 
-    mbtrf = &trans_mailboxs[channel][mailbox_id].transfer;
+    mbtrf = &transMbs[channel][mailbox_id].transfer;
     
     if (all) {
-        for (i = 0; i <= CAN_NUM_MAILBOX; i++) {
-            trans_mailboxs[channel][i].transfer.bMsgLen = 0;
+        for (i = 0; i < CAN_NUM_MAILBOX; i++) {
+            transMbs[channel][i].transfer.bMsgLen = 0;
         }
         return;
     }
@@ -395,18 +391,28 @@ void can_clear_mailbox(uint8_t channel, uint8_t mailbox_id, bool all)
 
 
 bool can_transfer_start(uint8_t channel, uint8_t mailbox_id)
-{    
+{
+    uint8_t state = 0, count = 0;
     sCand* pCand = &cand[channel];
-    sCandMbCfg* mbcfg = &trans_mailboxs[channel][mailbox_id].mbcfg;
-    sCandTransfer* mbtrf = &trans_mailboxs[channel][mailbox_id].transfer;
+    sCandMbCfg* mbcfg = &transMbs[channel][mailbox_id].mbcfg;
+    sCandTransfer* mbtrf = &transMbs[channel][mailbox_id].transfer;
 
-    CAND_ResetMailbox(pCand, mailbox_id, mbcfg);
-    CAND_Transfer(&cand[channel], mbtrf);
-    if (mailbox_id < RECV_MB_START) {
-        return _WaitXfrTO(mbtrf);
-    }
-    else {
+    if (mailbox_id >= RECV_MB_START || mbtrf->bMsgLen == 0) {
         return true;
     }
+
+    CAND_ResetMailbox(pCand, mailbox_id, mbcfg);
+    do {
+        state = CAND_Transfer(&cand[channel], mbtrf);
+        if (state != CAND_OK) {
+            printf("Can[%d] busy...%x\n\r", channel, state);
+            if (count++ < 5) {
+                continue;
+            }
+        }
+        break;
+    } while (1);
+    mbtrf->bMsgLen = 0;
+    return _WaitXfrTO(pCand, mbtrf);
 }
 

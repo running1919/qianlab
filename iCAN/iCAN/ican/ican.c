@@ -11,6 +11,8 @@
 
 #include "../lib/ican_timer.h"
 #include "../can/can_hal.h"
+#include "../include/can_config.h"
+
 
 #include "ican.h"
 
@@ -165,19 +167,21 @@ uint16_t if_copy_data(const ican_frame ifs[], const uint8_t ifs_num, uint8_t* bu
     }
 
     if (ifs[0].id.source_id >= 0xf8 && ifs[0].id.ack == 0) {
-        memcpy(buf, &(ifs[0].frame_data[2]), ifs[0].dlc - 1);
         if (ifs[0].dlc < 2 || ifs[0].dlc > 8) {
             return 0;
         }
+
+        memcpy(buf, &(ifs[0].frame_data[2]), ifs[0].dlc - 1);
         len = ifs[0].dlc - 2;
         i = 1;
     }
 
-    for (; i < ifs_num; i++) {        
-        memcpy(&buf[len], &(ifs[i].frame_data[1]), ifs[i].dlc - 1);
+    for (; i < ifs_num; i++) {
         if (ifs[i].dlc < 1 || ifs[i].dlc > 8) {
             return 0;
         }
+
+        memcpy(&buf[len], &(ifs[i].frame_data[1]), ifs[i].dlc - 1);
         len += ifs[i].dlc - 1;
     }
 
@@ -418,29 +422,40 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
     ican_frame iframe;
 
     static bool initFlag = false;
-    static IcanMsg icanmsg;
+    static IcanMsg icanmsg[NUM_CAN_IF];
+    IcanMsg *curimsg;
+
+    if (channel >= NUM_CAN_IF) {
+        return ICAN_ERR_PARAM;
+    }    
 
     if (initFlag != true) {
-        for (i = 0; i < RECV_MAX_MSG_NUM; i++) {            
-            icanmsg.msgLifeTick[i] = 0;
-            icanmsg.msgValid[i] = false;
-            icanmsg.msgFrameNum[i] = 0;
+        for (j = 0; j < NUM_CAN_IF; j++) {
+            for (i = 0; i < RECV_MAX_MSG_NUM; i++) {            
+                icanmsg[j].msgLifeTick[i] = 0;
+                icanmsg[j].msgValid[i] = false;
+                icanmsg[j].msgFrameNum[i] = 0;
+            }
+            icanmsg[j].wp = 0;
+            icanmsg[j].maxMsgNum = RECV_MAX_MSG_NUM;
+            icanmsg[j].maxLifeTick = MSG_MAX_LIFE_TICK;
         }
-        icanmsg.wp = 0;
-        icanmsg.maxMsgNum = RECV_MAX_MSG_NUM;
-        icanmsg.maxLifeTick = MSG_MAX_LIFE_TICK;
 
         initFlag = true;
     }
 
-    curTick = ican_tmr_ms_get();
+    curimsg = &icanmsg[channel];
+
     /* discard too old msg */
     for (i = 0; i < RECV_MAX_MSG_NUM; i++) {
-        if ((ican_tmr_ms_delta(icanmsg.msgLifeTick[i])
-            > icanmsg.maxLifeTick)) {
-            icanmsg.msgFrameNum[i] = 0;
-            icanmsg.msgValid[i] = false;
-            icanmsg.ifs[i][0].id.src_mac_id = 0xff;
+        if ((ican_tmr_ms_delta(curimsg->msgLifeTick[i])
+            > curimsg->maxLifeTick)) {
+            for (j = 0; j < curimsg->msgFrameNum[i]; j++) {
+                memset(&curimsg->ifs[i][j], 0x00, sizeof(ican_frame));
+            }
+            curimsg->msgFrameNum[i] = 0;
+            curimsg->msgValid[i] = false;
+            curimsg->ifs[i][0].id.src_mac_id = 0xff;
         }
     }
 
@@ -451,7 +466,7 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
         /* recv anyone frame */
         iframe.dlc = 0;
         while (1) {            
-            can_hal_recv(channel, 0xff, &iframe);
+            can_hal_recv(channel, &iframe);
             if (iframe.dlc > 0) {
                 break;
             }
@@ -466,22 +481,22 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
             splitFlag = iframe.frame_data[0];
            
             if (splitFlag == ICAN_NO_SPLIT_SEG) {
-                memcpy(&icanmsg.ifs[icanmsg.wp][0], &iframe, sizeof(ican_frame));
-                icanmsg.msgValid[icanmsg.wp] = true;
-                icanmsg.msgFrameNum[icanmsg.wp] = 1;
-                icanmsg.msgLifeTick[icanmsg.wp] = ican_tmr_ms_get();
-                icanmsg.wp = (icanmsg.wp + 1) % icanmsg.maxMsgNum;
+                memcpy(&curimsg->ifs[curimsg->wp][0], &iframe, sizeof(ican_frame));
+                curimsg->msgValid[curimsg->wp] = true;
+                curimsg->msgFrameNum[curimsg->wp] = 1;
+                curimsg->msgLifeTick[curimsg->wp] = ican_tmr_ms_get();
+                curimsg->wp = (curimsg->wp + 1) % curimsg->maxMsgNum;
 
                 iframe.dlc = 0;
                 continue;
             }
 
             if ((splitFlag & 0xc0) == ICAN_SPLIT_SEG_FIRST) {
-                memcpy(&icanmsg.ifs[icanmsg.wp][0], &iframe, sizeof(ican_frame));
-                icanmsg.msgValid[icanmsg.wp] = false;
-                icanmsg.msgFrameNum[icanmsg.wp] = 1;
-                icanmsg.msgLifeTick[icanmsg.wp] = ican_tmr_ms_get();
-                icanmsg.wp = (icanmsg.wp + 1) % icanmsg.maxMsgNum;
+                memcpy(&curimsg->ifs[curimsg->wp][0], &iframe, sizeof(ican_frame));
+                curimsg->msgValid[curimsg->wp] = false;
+                curimsg->msgFrameNum[curimsg->wp] = 1;
+                curimsg->msgLifeTick[curimsg->wp] = ican_tmr_ms_get();
+                curimsg->wp = (curimsg->wp + 1) % curimsg->maxMsgNum;
 
                 iframe.dlc = 0;
                 curTick = ican_tmr_ms_get();
@@ -497,40 +512,53 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
 
             if ((splitFlag & 0xc0) == ICAN_SPLIT_SEG_MID
                 || (splitFlag & 0xc0) == ICAN_SPLIT_SEG_LAST) {
-                for (i = 0; i < icanmsg.maxMsgNum; i++) {
-                    if (icanmsg.msgValid[i] == false) {
-                        if (icanmsg.ifs[i][0].id.src_mac_id == iframe.id.src_mac_id
-                            && icanmsg.ifs[i][0].id.func_id == iframe.id.func_id
-                            && icanmsg.ifs[i][0].id.source_id == iframe.id.source_id) {
-                            memcpy(&icanmsg.ifs[i][splitFlag & 0x3f],
+                for (i = 0; i < curimsg->maxMsgNum; i++) {//find one incomplete data 
+                    if (curimsg->msgValid[i] == false) {
+                        if (curimsg->ifs[i][0].id.src_mac_id == iframe.id.src_mac_id
+                            && curimsg->ifs[i][0].id.func_id == iframe.id.func_id
+                            && curimsg->ifs[i][0].id.source_id == iframe.id.source_id) {
+                            if (curimsg->ifs[i][splitFlag & 0x3f].dlc > 0) {
+                                continue;
+                            }
+                            memcpy(&curimsg->ifs[i][splitFlag & 0x3f],
                                    &iframe, sizeof(ican_frame));
-                            icanmsg.msgValid[i] = false;
-                            icanmsg.msgFrameNum[i] += 1;
-                            icanmsg.msgLifeTick[i] = ican_tmr_ms_get();
+                            curimsg->msgValid[i] = false;
+                            curimsg->msgFrameNum[i] += 1;
+                            curimsg->msgLifeTick[i] = ican_tmr_ms_get();
 
-                            if (icanmsg.msgFrameNum[i] == (icanmsg.ifs[i][0].frame_data[0] & 0x3f)) {
-                                if ((icanmsg.ifs[i][icanmsg.msgFrameNum[i] - 1].frame_data[0] & 0xc0)
+                            if (curimsg->msgFrameNum[i] == (curimsg->ifs[i][0].frame_data[0] & 0x3f)) {
+                                if ((curimsg->ifs[i][curimsg->msgFrameNum[i] - 1].frame_data[0] & 0xc0)
                                     == ICAN_SPLIT_SEG_LAST) {
-                                    icanmsg.msgValid[i] = true;
+                                    curimsg->msgValid[i] = true;
                                 }
                                 else {
-                                    icanmsg.msgFrameNum[i] = 0;
-                                    icanmsg.msgValid[i] = false;
-                                    icanmsg.ifs[i][0].id.src_mac_id = 0xff;
+                                    curimsg->msgFrameNum[i] = 0;
+                                    curimsg->msgValid[i] = false;
+                                    curimsg->ifs[i][0].id.src_mac_id = 0xff;
                                 }
                             }
 
                             curTick = ican_tmr_ms_get();
                             iframe.dlc = 0;
+                            break;
                         }
                         else {
                             continue;
                         }
-                    }//if (icanmsg.msgValid[i]
+                    }//if (curimsg->msgValid[i]
                     else {
                         continue;
                     }
                 }//for
+                if (i == curimsg->maxMsgNum && iframe.dlc > 0) {
+                	memcpy(&curimsg->ifs[curimsg->wp][0], &iframe, sizeof(ican_frame));
+                	curimsg->msgValid[curimsg->wp] = false;
+                	curimsg->msgFrameNum[curimsg->wp] = 1;
+                	curimsg->msgLifeTick[curimsg->wp] = ican_tmr_ms_get();
+                	curimsg->wp = (curimsg->wp + 1) % curimsg->maxMsgNum;
+
+                	iframe.dlc = 0;
+				}
             }//if ((splitFlag & 0xc0)
         }//if (iframe.dlc > 0)
 
@@ -540,11 +568,11 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
     } while (1);
 
     /* pick up one msg */
-    for (j = 0; j < icanmsg.maxMsgNum; j++) {
-        if (icanmsg.msgValid[j] == false) {
+    for (j = 0; j < curimsg->maxMsgNum; j++) {
+        if (curimsg->msgValid[j] == false) {
             continue;
         }
-        if (icanmsg.ifs[j][0].id.src_mac_id == src_macid) {
+        if (curimsg->ifs[j][0].id.src_mac_id == src_macid) {
             break;
         }
         if (src_macid == 0xff) {
@@ -552,18 +580,19 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
         }
     }
 
-    if (j == icanmsg.maxMsgNum) {
+    if (j == curimsg->maxMsgNum) {
         return ICAN_ERR_TIME_OUT;
     }
 
-    for (i = 0; i < icanmsg.msgFrameNum[j]; i++) {
-        memcpy(&ifs[i], &icanmsg.ifs[j][i], sizeof(ican_frame));
+    for (i = 0; i < curimsg->msgFrameNum[j]; i++) {
+        memcpy(&ifs[i], &curimsg->ifs[j][i], sizeof(ican_frame));
+        memset(&curimsg->ifs[j][i], 0x00, sizeof(ican_frame));
     }
-    *ifs_num = icanmsg.msgFrameNum[j];
+    *ifs_num = curimsg->msgFrameNum[j];
 
-    icanmsg.msgFrameNum[j] = 0;
-    icanmsg.msgValid[j] = false;
-    icanmsg.ifs[j][0].id.src_mac_id = 0xff;
+    curimsg->msgFrameNum[j] = 0;
+    curimsg->msgValid[j] = false;
+    curimsg->ifs[j][0].id.src_mac_id = 0xff;
 
     return ICAN_OK;
 #endif

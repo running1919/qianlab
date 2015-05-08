@@ -290,7 +290,7 @@ VSysClock getSysTime(void)
     
     ptm = gmtime(&seconds);//ptm = localtime(&seconds);
     vsc.wYear = ptm->tm_year + 1900;
-    vsc.byMonth = ptm->tm_mon;
+    vsc.byMonth = ptm->tm_mon + 1;
     vsc.byDay = ptm->tm_mday;
     vsc.byWeek = ptm->tm_wday;
     vsc.byHour = ptm->tm_hour;
@@ -308,7 +308,7 @@ void setSysTime(VSysClock* vsc)
     time_t t;
    
     stm.tm_year = vsc->wYear - 1900;
-    stm.tm_mon = vsc->byMonth;
+    stm.tm_mon = vsc->byMonth - 1;
     stm.tm_mday = vsc->byDay;
     stm.tm_wday = vsc->byWeek;
     stm.tm_hour = vsc->byHour;
@@ -347,10 +347,13 @@ void rtcIrqHandler(void)
 #ifndef PRECISION_IN_MS
     if (RTC_GetITStatus(RTC_IT_ALR) != RESET) {
         RTC_ClearITPendingBit(RTC_FLAG_ALR);
-        alarmProc();
+        if (alarm > 0 && alarm != NULL) {
+            alarmProc();
+        }
     }
 #else
-    if (alarm == seconds) {
+    if (alarm > 0 && alarm == seconds
+        && alarm != NULL) {
         alarmProc();
     }
 #endif
