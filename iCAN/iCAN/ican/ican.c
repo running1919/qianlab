@@ -491,6 +491,7 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
                 continue;
             }
 
+#if 0
             if ((splitFlag & 0xc0) == ICAN_SPLIT_SEG_FIRST) {
                 memcpy(&curimsg->ifs[curimsg->wp][0], &iframe, sizeof(ican_frame));
                 curimsg->msgValid[curimsg->wp] = false;
@@ -502,7 +503,7 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
                 curTick = ican_tmr_ms_get();
                 continue;
             }
-
+#endif
             if ((splitFlag & 0x3f) > (ICAN_SPLIT_MAX_SEGS - 1)) {
                 if (ican_tmr_ms_delta(curTick) >= timeout) {
                     break;
@@ -510,7 +511,8 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
                 continue;
             }
 
-            if ((splitFlag & 0xc0) == ICAN_SPLIT_SEG_MID
+            if ((splitFlag & 0xc0) == ICAN_SPLIT_SEG_FIRST
+                ||(splitFlag & 0xc0) == ICAN_SPLIT_SEG_MID
                 || (splitFlag & 0xc0) == ICAN_SPLIT_SEG_LAST) {
                 for (i = 0; i < curimsg->maxMsgNum; i++) {//find one incomplete data 
                     if (curimsg->msgValid[i] == false) {
@@ -518,7 +520,8 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
                             && curimsg->ifs[i][0].id.func_id == iframe.id.func_id
                             && curimsg->ifs[i][0].id.source_id == iframe.id.source_id) {
                             if (curimsg->ifs[i][splitFlag & 0x3f].dlc > 0) {
-                                continue;
+                                //ican_printf("[ican]:it has data\n\r");
+                                //continue;
                             }
                             memcpy(&curimsg->ifs[i][splitFlag & 0x3f],
                                    &iframe, sizeof(ican_frame));
