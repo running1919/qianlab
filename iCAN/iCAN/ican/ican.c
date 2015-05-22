@@ -337,86 +337,9 @@ ierr_t ican_send_msg(const uint8_t channel, const ican_frame ifs[], const uint8_
 ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[], uint8_t *ifs_num, const uint32_t timeout)
 {
 #if 0
-    uint8_t recvf_num = 0;
-    ierr_t ret;
-    uint32_t curTick;
-
-    //static ican_frame recvRepos[4];
-
-    curTick = ican_tmr_ms_get();
-    /* recv msg */
-    do {
-        /* recv one msg */ 
-        while (1) {
-            if (ican_tmr_ms_delta(curTick) > timeout) {
-                 return ICAN_ERR_TIME_OUT;
-            }
-            ifs[0].dlc = 0;
-            can_hal_recv(channel, src_macid, &ifs[0]);
-
-            if (ifs[0].dlc > 0) {
-                break;
-            }
-        }
-
-        if ((ifs[0].frame_data[0] == ICAN_NO_SPLIT_SEG)) {
-            recvf_num = 1;
-            if (ifs_num != NULL) {
-                *ifs_num = 1;
-            }
-            return ICAN_OK;
-        }
-        
-        if ((ifs[0].frame_data[0] & 0xc0) == ICAN_SPLIT_SEG_FIRST) {
-            recvf_num = 1;
-            break;
-        }
-        else {            
-            if (ican_tmr_ms_delta(curTick) > timeout) {
-                return ICAN_ERR_TIME_OUT;
-            }
-        }
-    } while (1);
-
-    curTick = ican_tmr_ms_get();
-    /* recv mid & last seg msg */
-    if (recvf_num == 1) {
-        do {
-            if (ican_tmr_ms_delta(curTick) > timeout) {
-                return ICAN_ERR_TIME_OUT;
-            }
-            ifs[recvf_num].dlc = 0;
-            can_hal_recv(channel, src_macid, &ifs[recvf_num]);
-            if (ifs[recvf_num].dlc == 0) {
-                continue;
-            }
-            
-            /* excepet happen */
-            if (ifs[recvf_num].id.source_id != ifs[0].id.source_id
-                && ifs[recvf_num].frame_data[0] & 0xc0 != ICAN_SPLIT_SEG_MID
-                && ifs[recvf_num].frame_data[0] & 0x3f != recvf_num) {             
-                ret = ICAN_ERR_SPLIT_TRANS;
-                break;
-            }
-
-            if ((ifs[recvf_num].frame_data[0] & 0xc0) == ICAN_SPLIT_SEG_LAST) {
-                ++recvf_num;
-                ret = ICAN_OK;
-                break;
-            }
-            ++recvf_num;
-            curTick = ican_tmr_ms_get();
-        } while (1);
-    }
-
-    if (ifs_num != NULL) {
-        *ifs_num = recvf_num;
-    }
-
-    return ret;    
-#else
     uint8_t i = 0, j = 0;
     uint8_t splitFlag = 0;
+    uint8_t tryCnt = 0;
     uint32_t curTick;
     //ierr_t ret;
     ican_frame iframe;
@@ -465,13 +388,15 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
     do {
         /* recv anyone frame */
         iframe.dlc = 0;
+        tryCnt = 0;
         while (1) {            
             can_hal_recv(channel, &iframe);
             if (iframe.dlc > 0) {
                 break;
             }
 
-            if (ican_tmr_ms_delta(curTick) >= timeout) {
+            if (ican_tmr_ms_delta(curTick) >= timeout
+                || tryCnt > 100) {
                 break;
             }
         }
@@ -520,6 +445,7 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
                             && curimsg->ifs[i][0].id.func_id == iframe.id.func_id
                             && curimsg->ifs[i][0].id.source_id == iframe.id.source_id) {
                             if (curimsg->ifs[i][splitFlag & 0x3f].dlc > 0) {
+                                curimsg->msgFrameNum[i] -= 1;
                                 //ican_printf("[ican]:it has data\n\r");
                                 //continue;
                             }
@@ -599,6 +525,211 @@ ierr_t ican_recv_msg(const uint8_t channel, uint8_t src_macid, ican_frame ifs[],
 
     return ICAN_OK;
 #endif
+
+    uint8_t i = 0, j = 0;
+    uint8_t splitFlag = 0;
+    uint8_t splitHead = 0;
+    uint8_t splitSegs = 0;
+    uint8_t splitSegm = 0;
+    uint8_t tryCnt = 0;
+    uint32_t curTick = 0;
+    //ierr_t ret;
+    ican_frame iframe;
+    IcanMsg *curimsg;
+
+    static bool initFlag = false;
+    static uint32_t lostCnt = 0;
+    static IcanMsg icanmsg[NUM_CAN_IF];
+
+    if (channel >= NUM_CAN_IF) {
+        return ICAN_ERR_PARAM;
+    }    
+
+    if (initFlag != true) {
+        for (j = 0; j < NUM_CAN_IF; j++) {
+            for (i = 0; i < RECV_MAX_MSG_NUM; i++) {
+                icanmsg[j].msgLifeTick[i] = 0;
+                icanmsg[j].msgValid[i] = false;
+                icanmsg[j].msgFrameNum[i] = 0;
+            }
+            icanmsg[j].wp = 0;
+            icanmsg[j].maxMsgNum = RECV_MAX_MSG_NUM;
+            icanmsg[j].maxLifeTick = MSG_MAX_LIFE_TICK;
+        }
+
+        initFlag = true;
+    }
+
+    curimsg = &icanmsg[channel];
+
+    /* discard too old msg */
+    for (i = 0; i < RECV_MAX_MSG_NUM; i++) {
+        if (curimsg->msgFrameNum[i] == 0) {
+            continue;
+        }
+
+        if ((ican_tmr_ms_delta(curimsg->msgLifeTick[i])
+            > curimsg->maxLifeTick)) {
+            for (j = 0; j < curimsg->msgFrameNum[i]; j++) {
+                memset(&curimsg->ifs[i][j], 0x00, sizeof(ican_frame));
+            }
+            curimsg->msgFrameNum[i] = 0;
+            curimsg->msgValid[i] = false;
+            curimsg->ifs[i][0].id.src_mac_id = 0xff;
+        }
+    }
+
+    curTick = ican_tmr_ms_get();
+
+    /* try recv all msg */
+    do {
+        /* recv anyone frame */
+        iframe.dlc = 0;
+        tryCnt = 0;
+        while (1) {
+            can_hal_recv(channel, &iframe);
+            if (iframe.dlc > 0) {
+                break;
+            }
+
+            if (ican_tmr_ms_delta(curTick) >= timeout
+                || tryCnt++ > 100) {
+                break;
+            }
+        }
+
+        /* process recved one frame */
+        if (iframe.dlc > 0) {
+            splitFlag = iframe.frame_data[0];
+
+            if ((splitFlag == ICAN_NO_SPLIT_SEG)) {
+                memcpy(&curimsg->ifs[curimsg->wp][0], &iframe, sizeof(ican_frame));
+                curimsg->msgValid[curimsg->wp] = true;
+                curimsg->msgFrameNum[curimsg->wp] = 1;
+                curimsg->msgLifeTick[curimsg->wp] = ican_tmr_ms_get();
+                curimsg->wp = (curimsg->wp + 1) % curimsg->maxMsgNum;
+
+                iframe.dlc = 0;
+                continue;
+            }
+
+            splitHead = splitFlag & 0xc0;
+            splitSegm = splitFlag & 0x3f;
+
+            if (splitHead > ICAN_SPLIT_SEG_LAST) {
+                //printf("unkonwn frame1...\n\r");
+                continue;
+            }
+
+            if (splitHead == ICAN_SPLIT_SEG_FIRST) {                
+                if (splitSegm == 0 || splitSegm > ICAN_SPLIT_MAX_SEGS) {
+                    //printf("unkonwn frame2...\n\r");
+                    continue;
+                }
+                splitSegm = 0;
+            }
+
+            if (splitSegm >= ICAN_SPLIT_MAX_SEGS) {
+                if (ican_tmr_ms_delta(curTick) >= timeout) {
+                    //printf("frame too much split segs...\n\r");
+                    break;
+                }
+                continue;
+            }
+
+            for (i = 0; i < curimsg->maxMsgNum; i++) {//find one incomplete data
+                if (curimsg->msgValid[i] == false) {
+                    if (curimsg->ifs[i][0].id.src_mac_id == iframe.id.src_mac_id
+                        && curimsg->ifs[i][0].id.func_id == iframe.id.func_id
+                        && curimsg->ifs[i][0].id.source_id == iframe.id.source_id) {
+                        if (curimsg->ifs[i][splitSegm].dlc > 0) {
+                            curimsg->msgFrameNum[i] -= 1;//it's not good process
+                            lostCnt++;
+                            if (lostCnt % 10 == 0) {
+                                //printf("can lost %d frame\n\r", lostCnt);
+                            }
+                        }
+
+                        memcpy(&curimsg->ifs[i][splitSegm],
+                               &iframe, sizeof(ican_frame));
+                        curimsg->msgValid[i] = false;
+                        curimsg->msgFrameNum[i] += 1;
+                        curimsg->msgLifeTick[i] = ican_tmr_ms_get();
+
+                        splitSegs = curimsg->ifs[i][0].frame_data[0] & 0x3f;
+                        if (curimsg->msgFrameNum[i] == splitSegs) {
+                            if ((curimsg->ifs[i][splitSegs - 1].frame_data[0] & 0xc0)
+                                == ICAN_SPLIT_SEG_LAST) {
+                                curimsg->msgValid[i] = true;
+                            }
+                            else {
+                                for (j = 0; j < splitSegs; j++) {
+                                    memset(&curimsg->ifs[i][j], 0x00,
+                                           sizeof(ican_frame));
+                                }
+                                curimsg->msgFrameNum[i] = 0;
+                                curimsg->msgValid[i] = false;
+                                curimsg->ifs[i][0].id.src_mac_id = 0xff;
+                            }
+                        }
+
+                        curTick = ican_tmr_ms_get();
+                        iframe.dlc = 0;
+                        break;
+                    }
+                    else {
+                        continue;
+                    }
+                }//if (curimsg->msgValid[i]
+                else {
+                    //printf("no palace\n\r");
+                    continue;
+                }
+            }//for
+            if (i == curimsg->maxMsgNum && iframe.dlc > 0) {
+                memcpy(&curimsg->ifs[curimsg->wp][0], &iframe, sizeof(ican_frame));
+                curimsg->msgValid[curimsg->wp] = false;
+                curimsg->msgFrameNum[curimsg->wp] = 1;
+                curimsg->msgLifeTick[curimsg->wp] = ican_tmr_ms_get();
+                curimsg->wp = (curimsg->wp + 1) % curimsg->maxMsgNum;
+
+                iframe.dlc = 0;
+            }
+        }//if (iframe.dlc > 0)
+
+        if (ican_tmr_ms_delta(curTick) >= timeout) {            
+            break;
+        }
+    } while (1);
+
+    /* pick up one msg */
+    for (j = 0; j < curimsg->maxMsgNum; j++) {
+        if (curimsg->msgValid[j] == false) {
+            continue;
+        }
+        if (curimsg->ifs[j][0].id.src_mac_id == src_macid) {
+            break;
+        }
+        if (src_macid == 0xff) {
+            break;
+        }
+    }
+
+    if (j == curimsg->maxMsgNum) {
+        return ICAN_ERR_TIME_OUT;
+    }
+
+    for (i = 0; i < curimsg->msgFrameNum[j]; i++) {
+        memcpy(&ifs[i], &curimsg->ifs[j][i], sizeof(ican_frame));
+        memset(&curimsg->ifs[j][i], 0x00, sizeof(ican_frame));      
+    }
+    *ifs_num = curimsg->msgFrameNum[j];
+
+    curimsg->msgFrameNum[j] = 0;
+    curimsg->msgValid[j] = false;
+    curimsg->ifs[j][0].id.src_mac_id = 0xff;
+
+    return ICAN_OK;
 }
 
 
