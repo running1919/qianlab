@@ -31,6 +31,12 @@ void WifiPowerOff(void)
 void WifiReset(void)
 {
     const Pin pin = WIFI_RST_PIN;
+    const Pin pin1 = WIFI_CS_PIN;
+    
+    WifiDisableExtInt();
+    PIO_Set(&pin1);
+    SPI_Disable(WIFI_SPI_BASE);
+    MSTimerDelay(10);
 
     PIO_Clear(&pin);
     MSTimerDelay(100);
